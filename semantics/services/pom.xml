@@ -204,7 +204,7 @@
             <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
-                <version>5.2.1</version>
+                <version>5.3.1</version>
                 <executions>
                     <execution>
                         <id>generate-semantic-hub-stubs</id>
@@ -239,6 +239,27 @@
                             <packageName>net.catenax.semantics.registry</packageName>
                             <modelPackage>net.catenax.semantics.registry.model</modelPackage>
                             <apiPackage>net.catenax.semantics.registry.api</apiPackage>
+
+                            <supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
+                            <configOptions>
+                                <delegatePattern>true</delegatePattern>
+                                <packageName>net.catenax</packageName>
+                            </configOptions>
+                            <invokerPackage>net.catenax.semantics</invokerPackage>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-aas-registry-api-stubs</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/aas-registry-openapi.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <packageName>net.catenax.semantics.aas.registry</packageName>
+                            <modelPackage>net.catenax.semantics.aas.registry.model</modelPackage>
+                            <apiPackage>net.catenax.semantics.aas.registry.api</apiPackage>
 
                             <supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
                             <configOptions>
