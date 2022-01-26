@@ -471,8 +471,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Identifier'
-      allOf:
-      - $ref: '#/components/schemas/Reference'
+  # The code generator gets in issues, because it's somehow recursive. Reference has a reference ModelReference ..
+  #    allOf:
+  #    - $ref: '#/components/schemas/Reference'
     Identifier:
       type: string
     ModelReference:
@@ -485,8 +486,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Key'
-      allOf:
-      - $ref: '#/components/schemas/Reference'
+  # The code generator gets in issues, because it's somehow recursive. Reference has a reference ModelReference ..
+  #    allOf:
+  #    - $ref: '#/components/schemas/Reference'
     Key:
       required:
       - type
