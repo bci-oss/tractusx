@@ -15,26 +15,17 @@
  */
 package net.catenax.semantics.registry;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-
 import net.catenax.semantics.registry.api.TwinsApiDelegate;
 import net.catenax.semantics.registry.model.DigitalTwin;
-import net.catenax.semantics.registry.model.DigitalTwinBatch;
-import net.catenax.semantics.registry.model.DigitalTwinCollection;
-import net.catenax.semantics.registry.model.DigitalTwinCreate;
-import net.catenax.semantics.registry.persistence.PersistenceLayer;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class CustomTwinsApiDelegate implements TwinsApiDelegate {
    private final Map<String, DigitalTwin> digitalTwins = new ConcurrentHashMap<>();
-
+/*
    @Autowired
    PersistenceLayer persistence;
 
@@ -77,4 +68,6 @@ public class CustomTwinsApiDelegate implements TwinsApiDelegate {
 
       return new ResponseEntity<>(resultTwinList, HttpStatus.OK);
   }
+
+ */
 }

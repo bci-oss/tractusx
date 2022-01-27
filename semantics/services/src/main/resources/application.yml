@@ -65,9 +65,8 @@ spring:
     password: tractusx
     username: tractusx
     url: jdbc:h2:file:./semantics/persistence
-  jpa:
-    hibernate:
-      ddl-auto: update
+
+
   # Configuration of http-endpoint host
   servlet:
     multipart:
@@ -86,6 +85,10 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
+  liquibase:
+    enabled: true
+
+
 title: '@project.name@'
 springdoc:
   swagger-ui:
@@ -98,5 +101,11 @@ organization_name: '@project.organization.name@'
 version: '@project.version@'
 management:
   endpoints:
-    enabled-by-default: false       
-    
+    enabled-by-default: false
+
+logging:
+  level:
+    org:
+      springframework:
+        jdbc:
+          core: TRACE
