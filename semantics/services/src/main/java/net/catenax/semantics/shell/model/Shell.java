@@ -1,13 +1,10 @@
 package net.catenax.semantics.shell.model;
 
 
-import lombok.*;
-import lombok.experimental.WithBy;
+import lombok.Value;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 
-import javax.annotation.Nullable;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,9 +16,12 @@ public class Shell {
     String idShort;
 
     @MappedCollection(idColumn = "FK_SHELL_ID")
-    Set<ShellIdentifier> shellIdentifiers;
+    Set<ShellIdentifier> identifiers;
 
-    public static Shell of(String idExternal, String idShort, @Nullable Set<ShellIdentifier> shellIdentifiers){
-        return new Shell(null, idExternal, idShort , shellIdentifiers);
-    }
+    @MappedCollection(idColumn = "FK_SHELL_ID")
+    Set<ShellDescription> descriptions;
+
+    @MappedCollection(idColumn = "FK_SHELL_ID")
+    Set<Submodel> submodels;
+
 }

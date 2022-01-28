@@ -14,7 +14,4 @@ public class ShellIdentifier {
     String key;
     String value;
 
-    public static ShellIdentifier of(String key, String value){
-        return new ShellIdentifier(null, key, value);
-    }
 }

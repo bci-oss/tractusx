@@ -10,9 +10,6 @@ public class ShellDescription {
     @Id
     UUID id;
     String language;
-    String value;
+    String text;
 
-    public static ShellDescription of(String language, String value){
-        return new ShellDescription(null, language, value);
-    }
 }

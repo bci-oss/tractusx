@@ -10,9 +10,6 @@ public class SubmodelDescription {
     @Id
     UUID id;
     String language;
-    String value;
+    String text;
 
-    public static SubmodelDescription of(String language, String value){
-        return new SubmodelDescription(null, language, value);
-    }
 }

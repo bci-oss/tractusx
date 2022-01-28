@@ -3,24 +3,24 @@ package net.catenax.semantics.shell.controller;
 import net.catenax.semantics.aas.registry.api.RegistryApiDelegate;
 import net.catenax.semantics.aas.registry.model.AssetAdministrationShellDescriptor;
 import net.catenax.semantics.aas.registry.model.SubmodelDescriptor;
+import net.catenax.semantics.shell.mapper.ShellMapper;
 import net.catenax.semantics.shell.model.Shell;
-import net.catenax.semantics.shell.model.ShellIdentifier;
 import net.catenax.semantics.shell.service.ShellService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class ShellApiDelegate implements RegistryApiDelegate {
 
     private final ShellService shellService;
+    private final ShellMapper shellMapper;
 
-    public ShellApiDelegate(final ShellService shellService){
+    public ShellApiDelegate(final ShellService shellService, final ShellMapper shellMapper){
         this.shellService = shellService;
+        this.shellMapper = shellMapper;
     }
 
     @Override
@@ -55,20 +55,8 @@ public class ShellApiDelegate implements RegistryApiDelegate {
 
     @Override
     public ResponseEntity<AssetAdministrationShellDescriptor> postAssetAdministrationShellDescriptor(AssetAdministrationShellDescriptor shell) {
-
-        Set<ShellIdentifier> shellIdentifiers = null;
-        if ( shell.getSpecificAssetIds() != null && !shell.getSpecificAssetIds().isEmpty()){
-            shellIdentifiers = shell.getSpecificAssetIds().stream().map( entry -> ShellIdentifier.of(entry.getKey(), entry.getValue()))
-                    .collect(Collectors.toSet());
-        }
-
-        Shell shellEntity = Shell.of(shell.getIdentification(), shell.getIdShort(), shellIdentifiers);
-
-        Shell saved = shellService.save(shellEntity);
-        AssetAdministrationShellDescriptor assetAdministrationShellDescriptor = new AssetAdministrationShellDescriptor();
-        assetAdministrationShellDescriptor.setIdentification(saved.getIdExternal());
-        assetAdministrationShellDescriptor.setIdShort(saved.getIdShort());
-        return new ResponseEntity<>(assetAdministrationShellDescriptor, HttpStatus.OK);
+        Shell saved = shellService.save(shellMapper.fromApi(shell));
+        return new ResponseEntity<>(shellMapper.toApiDto(saved), HttpStatus.OK);
     }
 
     @Override
