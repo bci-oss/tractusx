@@ -105,8 +105,8 @@ public class ShellMapperTest {
     }
 
     private Shell createCompleteShell() {
-        ShellIdentifier shellIdentifier1 = new ShellIdentifier(UUID.randomUUID(), "key1", "value1");
-        ShellIdentifier shellIdentifier2 = new ShellIdentifier(UUID.randomUUID(), "key1", "value1");
+        ShellIdentifier shellIdentifier1 = new ShellIdentifier(UUID.randomUUID(), "key1", "value1", null);
+        ShellIdentifier shellIdentifier2 = new ShellIdentifier(UUID.randomUUID(), "key1", "value1", null);
         Set<ShellIdentifier> shellIdentifiers = Set.of(shellIdentifier1, shellIdentifier2);
 
         ShellDescription shellDescription1 = new ShellDescription(UUID.randomUUID(), "en", "example description1");

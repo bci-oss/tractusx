@@ -117,7 +117,7 @@ public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate 
 
     @Override
     public ResponseEntity<List<IdentifierKeyValuePair>> getAllAssetLinksById(String aasIdentifier) {
-        Set<ShellIdentifier> identifiers = shellService.findShellByExternalId(aasIdentifier).getIdentifiers();
+        Set<ShellIdentifier> identifiers = shellService.findShellIdentifiersByExternalShellId(aasIdentifier);
         return new ResponseEntity<>(shellMapper.toApiDto(identifiers), HttpStatus.OK);
     }
 

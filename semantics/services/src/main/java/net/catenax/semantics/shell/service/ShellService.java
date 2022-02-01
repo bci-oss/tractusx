@@ -1,14 +1,17 @@
 package net.catenax.semantics.shell.service;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import net.catenax.semantics.shell.model.Shell;
 import net.catenax.semantics.shell.model.ShellIdentifier;
 import net.catenax.semantics.shell.model.Submodel;
+import net.catenax.semantics.shell.model.projection.IdOnly;
+import net.catenax.semantics.shell.repository.ShellIdentifierRepository;
 import net.catenax.semantics.shell.repository.ShellRepository;
 import net.catenax.semantics.shell.repository.SubmodelRepository;
-import org.springframework.data.jdbc.core.mapping.AggregateReference;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -19,9 +22,13 @@ import java.util.stream.StreamSupport;
 public class ShellService {
 
     private final ShellRepository shellRepository;
+    private final ShellIdentifierRepository shellIdentifierRepository;
     private final SubmodelRepository submodelRepository;
-    public ShellService(ShellRepository shellRepository, SubmodelRepository submodelRepository) {
+
+    public ShellService(ShellRepository shellRepository, ShellIdentifierRepository shellIdentifierRepository,
+                        SubmodelRepository submodelRepository) {
         this.shellRepository = shellRepository;
+        this.shellIdentifierRepository = shellIdentifierRepository;
         this.submodelRepository = submodelRepository;
     }
 
@@ -35,46 +42,55 @@ public class ShellService {
     }
 
     public List<Shell> findAllShells(){
-        return StreamSupport.stream(shellRepository.findAll().spliterator(), false).collect(Collectors.toList());
+        return ImmutableList.copyOf(shellRepository.findAll());
     }
 
     public Shell update(String externalShellId, Shell shell){
-        Shell shellFromDb = findShellByExternalId(externalShellId);
-        return shellRepository.save(shell.withId(shellFromDb.getId()));
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        return shellRepository.save(shell.withId(shellId.getId()));
     }
 
     public void deleteShell(String externalShellId) {
-        Shell shell = findShellByExternalId(externalShellId);
-        shellRepository.deleteById(shell.getId());
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        shellRepository.deleteById(shellId.getId());
+    }
+
+    public Set<ShellIdentifier> findShellIdentifiersByExternalShellId(String externalShellId){
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        return shellIdentifierRepository.findByShellId(shellId.getId());
     }
 
     public void deleteAllIdentifiers(String externalShellId){
-        Shell shell = findShellByExternalId(externalShellId);
-        shellRepository.save(shell.withIdentifiers(Set.of()));
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        shellIdentifierRepository.deleteShellIdentifiersByShellId(shellId.getId());
     }
 
     public Set<ShellIdentifier> save(String externalShellId, Set<ShellIdentifier> shellIdentifiers){
-        Shell shell = findShellByExternalId(externalShellId);
-        return shellRepository.save(shell.withIdentifiers(shellIdentifiers)).getIdentifiers();
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        shellIdentifierRepository.deleteShellIdentifiersByShellId(shellId.getId());
+
+        List<ShellIdentifier> identifiersToUpdate = shellIdentifiers.stream().map(identifier -> identifier.withShellId(shellId.getId()))
+                .collect(Collectors.toList());
+        return ImmutableSet.copyOf(shellIdentifierRepository.saveAll(identifiersToUpdate));
     }
 
     public Submodel save(String externalShellId, Submodel submodel){
-        Shell shell = findShellByExternalId(externalShellId);
-        return submodelRepository.save(submodel.withFkShellId(shell.getId()));
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        return submodelRepository.save(submodel.withFkShellId(shellId.getId()));
     }
 
     public Submodel update(String externalShellId, String externalSubmodelId, Submodel submodel){
-        Shell shell = findShellByExternalId(externalShellId);
-        Submodel submodelFromDb = findSubmodelByExternalId(externalSubmodelId, shell.getId());
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        Submodel submodelFromDb = findSubmodelByExternalId(externalSubmodelId, shellId.getId());
         return submodelRepository.save(submodel
                 .withId(submodelFromDb.getId())
-                .withFkShellId(shell.getId())
+                .withFkShellId(shellId.getId())
         );
     }
 
     public void deleteSubmodel(String externalShellId, String externalSubModelId) {
-        Shell shell = findShellByExternalId(externalShellId);
-        Submodel submodel = findSubmodelByExternalId(externalSubModelId, shell.getId());
+        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        Submodel submodel = findSubmodelByExternalId(externalSubModelId, shellId.getId());
         submodelRepository.deleteById(submodel.getId());
     }
 
@@ -82,6 +98,11 @@ public class ShellService {
         return submodelRepository
                 .findByIdExternalAndFkShellId(externalSubModelId, shellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
+    }
+
+    public IdOnly findShellIdByExternalId(String externalShellId){
+        return shellRepository.findIdOnlyByIdExternal(externalShellId)
+                .orElseThrow(() -> new EntityNotFoundException(String.format("Shell for identifier %s not found", externalShellId)));
     }
 
 
