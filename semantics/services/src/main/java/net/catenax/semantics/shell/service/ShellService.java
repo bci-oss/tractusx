@@ -10,6 +10,7 @@ import net.catenax.semantics.shell.repository.ShellIdentifierRepository;
 import net.catenax.semantics.shell.repository.ShellRepository;
 import net.catenax.semantics.shell.repository.SubmodelRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
@@ -30,39 +31,46 @@ public class ShellService {
         this.submodelRepository = submodelRepository;
     }
 
+    @Transactional
     public Shell save(Shell shell) {
         return shellRepository.save(shell);
     }
 
+    @Transactional(readOnly = true)
     public Shell findShellByExternalId(String externalShellId){
         return shellRepository.findByIdExternal(externalShellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Shell for identifier %s not found", externalShellId)));
     }
-
+    @Transactional(readOnly = true)
     public List<Shell> findAllShells(){
         return ImmutableList.copyOf(shellRepository.findAll());
     }
 
+    @Transactional
     public Shell update(String externalShellId, Shell shell){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         return shellRepository.save(shell.withId(shellId.getId()));
     }
 
+    @Transactional
     public void deleteShell(String externalShellId) {
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         shellRepository.deleteById(shellId.getId());
     }
 
+    @Transactional(readOnly = true)
     public Set<ShellIdentifier> findShellIdentifiersByExternalShellId(String externalShellId){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         return shellIdentifierRepository.findByShellId(shellId.getId());
     }
 
+    @Transactional
     public void deleteAllIdentifiers(String externalShellId){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         shellIdentifierRepository.deleteShellIdentifiersByShellId(shellId.getId());
     }
 
+    @Transactional
     public Set<ShellIdentifier> save(String externalShellId, Set<ShellIdentifier> shellIdentifiers){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         shellIdentifierRepository.deleteShellIdentifiersByShellId(shellId.getId());
@@ -72,11 +80,13 @@ public class ShellService {
         return ImmutableSet.copyOf(shellIdentifierRepository.saveAll(identifiersToUpdate));
     }
 
+    @Transactional
     public Submodel save(String externalShellId, Submodel submodel){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         return submodelRepository.save(submodel.withShellId(shellId.getId()));
     }
 
+    @Transactional
     public Submodel update(String externalShellId, String externalSubmodelId, Submodel submodel){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         IdOnly subModelId = findSubmodelId(shellId.getId(), externalSubmodelId);
@@ -86,12 +96,14 @@ public class ShellService {
         );
     }
 
+    @Transactional
     public void deleteSubmodel(String externalShellId, String externalSubModelId) {
         IdOnly shellId = findShellIdByExternalId(externalShellId);
         IdOnly submodelId = findSubmodelId(shellId.getId(), externalSubModelId);
         submodelRepository.deleteById(submodelId.getId());
     }
 
+    @Transactional(readOnly = true)
     public Submodel findSubmodelByExternalId(String externalShellId, String externalSubModelId){
         IdOnly shellIdByExternalId = findShellIdByExternalId(externalShellId);
         return submodelRepository
@@ -99,13 +111,14 @@ public class ShellService {
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
     }
 
+    @Transactional(readOnly = true)
     public IdOnly findSubmodelId(UUID shellId, String externalSubModelId ){
         return submodelRepository
                 .findIdOnlyByShellIdAndIdExternal(shellId, externalSubModelId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
     }
 
-
+    @Transactional(readOnly = true)
     public IdOnly findShellIdByExternalId(String externalShellId){
         return shellRepository.findIdOnlyByIdExternal(externalShellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Shell for identifier %s not found", externalShellId)));
