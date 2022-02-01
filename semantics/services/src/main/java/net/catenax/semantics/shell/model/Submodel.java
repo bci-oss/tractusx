@@ -27,5 +27,5 @@ public class Submodel {
     Set<SubmodelEndpoint> endpoints;
 
     @Column( "FK_SHELL_ID")
-    UUID fkShellId;
+    UUID shellId;
 }

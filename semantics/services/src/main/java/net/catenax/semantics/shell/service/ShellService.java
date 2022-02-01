@@ -76,7 +76,7 @@ public class ShellService {
 
     public Submodel save(String externalShellId, Submodel submodel){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
-        return submodelRepository.save(submodel.withFkShellId(shellId.getId()));
+        return submodelRepository.save(submodel.withShellId(shellId.getId()));
     }
 
     public Submodel update(String externalShellId, String externalSubmodelId, Submodel submodel){
@@ -84,7 +84,7 @@ public class ShellService {
         Submodel submodelFromDb = findSubmodelByExternalId(externalSubmodelId, shellId.getId());
         return submodelRepository.save(submodel
                 .withId(submodelFromDb.getId())
-                .withFkShellId(shellId.getId())
+                .withShellId(shellId.getId())
         );
     }
 
@@ -96,7 +96,7 @@ public class ShellService {
 
     public Submodel findSubmodelByExternalId(String externalSubModelId, UUID shellId){
         return submodelRepository
-                .findByIdExternalAndFkShellId(externalSubModelId, shellId)
+                .findByIdExternalAndShellId(externalSubModelId, shellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
     }
 
