@@ -10,6 +10,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Mappings;
 
 import java.util.List;
+import java.util.Set;
 
 @Mapper(uses = {SubmodelMapper.class}, componentModel = "spring")
 public interface ShellMapper {
@@ -23,7 +24,12 @@ public interface ShellMapper {
 
     ShellIdentifier fromApi(IdentifierKeyValuePair apiDto);
 
+    Set<ShellIdentifier> fromApi(List<IdentifierKeyValuePair> apiDto);
+
     @InheritInverseConfiguration
     AssetAdministrationShellDescriptor toApiDto(Shell shell);
+
     List<AssetAdministrationShellDescriptor> toApiDto(List<Shell> shell);
+    @InheritInverseConfiguration
+    List<IdentifierKeyValuePair> toApiDto(Set<ShellIdentifier> shell);
 }

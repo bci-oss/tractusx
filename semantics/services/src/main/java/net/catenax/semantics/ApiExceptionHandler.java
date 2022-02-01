@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
+import net.catenax.semantics.shell.service.EntityNotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -80,7 +81,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                   .path( request.getRequestURI() ) ), HttpStatus.BAD_REQUEST );
    }
 
-   @ExceptionHandler( { AspectModelNotFoundException.class, ModelPackageNotFoundException.class } )
+   @ExceptionHandler( { AspectModelNotFoundException.class, ModelPackageNotFoundException.class , EntityNotFoundException.class } )
    public ResponseEntity<ErrorResponse> handleNotFoundException( final HttpServletRequest request,
          final RuntimeException exception ) {
       return new ResponseEntity<>( new ErrorResponse()

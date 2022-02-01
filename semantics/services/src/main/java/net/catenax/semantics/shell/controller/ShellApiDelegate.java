@@ -1,42 +1,54 @@
 package net.catenax.semantics.shell.controller;
 
+import net.catenax.semantics.aas.registry.api.LookupApiDelegate;
 import net.catenax.semantics.aas.registry.api.RegistryApiDelegate;
 import net.catenax.semantics.aas.registry.model.AssetAdministrationShellDescriptor;
+import net.catenax.semantics.aas.registry.model.IdentifierKeyValuePair;
 import net.catenax.semantics.aas.registry.model.SubmodelDescriptor;
 import net.catenax.semantics.shell.mapper.ShellMapper;
 import net.catenax.semantics.shell.mapper.SubmodelMapper;
 import net.catenax.semantics.shell.model.Shell;
+import net.catenax.semantics.shell.model.ShellIdentifier;
 import net.catenax.semantics.shell.model.Submodel;
 import net.catenax.semantics.shell.service.ShellService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.NativeWebRequest;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
-public class ShellApiDelegate implements RegistryApiDelegate {
+public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate {
 
     private final ShellService shellService;
     private final ShellMapper shellMapper;
     private final SubmodelMapper submodelMapper;
 
-    public ShellApiDelegate(final ShellService shellService, final ShellMapper shellMapper, SubmodelMapper submodelMapper){
+    public ShellApiDelegate(final ShellService shellService, final ShellMapper shellMapper, SubmodelMapper submodelMapper) {
         this.shellService = shellService;
         this.shellMapper = shellMapper;
         this.submodelMapper = submodelMapper;
     }
 
+
+    @Override
+    public Optional<NativeWebRequest> getRequest() {
+        return RegistryApiDelegate.super.getRequest();
+    }
+
     @Override
     public ResponseEntity<Void> deleteAssetAdministrationShellDescriptorById(String aasIdentifier) {
         shellService.deleteShell(aasIdentifier);
-        return new ResponseEntity<>( HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @Override
     public ResponseEntity<Void> deleteSubmodelDescriptorById(String aasIdentifier, String submodelIdentifier) {
-        shellService.deleteSubmodel(aasIdentifier,submodelIdentifier);
-        return new ResponseEntity<>( HttpStatus.NO_CONTENT);
+        shellService.deleteSubmodel(aasIdentifier, submodelIdentifier);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @Override
@@ -46,8 +58,8 @@ public class ShellApiDelegate implements RegistryApiDelegate {
 
     @Override
     public ResponseEntity<List<SubmodelDescriptor>> getAllSubmodelDescriptors(String aasIdentifier) {
-        Shell saved = shellService.findShellByExternalId(aasIdentifier);
-        return new ResponseEntity<>(submodelMapper.toApiDto(saved.getSubmodels()), HttpStatus.OK);
+        Shell savedShell = shellService.findShellByExternalId(aasIdentifier);
+        return new ResponseEntity<>(submodelMapper.toApiDto(savedShell.getSubmodels()), HttpStatus.OK);
     }
 
     @Override
@@ -59,7 +71,7 @@ public class ShellApiDelegate implements RegistryApiDelegate {
     @Override
     public ResponseEntity<SubmodelDescriptor> getSubmodelDescriptorById(String aasIdentifier, String submodelIdentifier) {
         Shell shell = shellService.findShellByExternalId(aasIdentifier);
-        Submodel submodel =  shellService.findSubmodelByExternalId(submodelIdentifier, shell.getId());
+        Submodel submodel = shellService.findSubmodelByExternalId(submodelIdentifier, shell.getId());
         return new ResponseEntity<>(submodelMapper.toApiDto(submodel), HttpStatus.OK);
     }
 
@@ -78,16 +90,40 @@ public class ShellApiDelegate implements RegistryApiDelegate {
     @Override
     public ResponseEntity<Void> putAssetAdministrationShellDescriptorById(String aasIdentifier, AssetAdministrationShellDescriptor assetAdministrationShellDescriptor) {
         shellService.update(aasIdentifier, shellMapper.fromApi(assetAdministrationShellDescriptor)
-                // the external id in the payload is not allowed to be
+                // the external id in the payload must not differ from the path parameter and will be overridden
                 .withIdExternal(aasIdentifier));
-        return new ResponseEntity<>( HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @Override
     public ResponseEntity<Void> putSubmodelDescriptorById(String aasIdentifier, String submodelIdentifier, SubmodelDescriptor submodelDescriptor) {
         shellService.update(aasIdentifier, submodelIdentifier, submodelMapper.fromApiDto(submodelDescriptor)
-                // the external id in the payload is not allowed to be
+                // the external id in the payload must not differ from the path parameter and will be overridden
                 .withIdExternal(submodelIdentifier));
-        return new ResponseEntity<>( HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @Override
+    public ResponseEntity<Void> deleteAllAssetLinksById(String aasIdentifier) {
+        shellService.deleteAllIdentifiers(aasIdentifier);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    // TODO implement the query
+    @Override
+    public ResponseEntity<List<String>> getAllAssetAdministrationShellIdsByAssetLink(List<IdentifierKeyValuePair> assetIds) {
+        return LookupApiDelegate.super.getAllAssetAdministrationShellIdsByAssetLink(assetIds);
+    }
+
+    @Override
+    public ResponseEntity<List<IdentifierKeyValuePair>> getAllAssetLinksById(String aasIdentifier) {
+        Set<ShellIdentifier> identifiers = shellService.findShellByExternalId(aasIdentifier).getIdentifiers();
+        return new ResponseEntity<>(shellMapper.toApiDto(identifiers), HttpStatus.OK);
+    }
+
+    @Override
+    public ResponseEntity<List<IdentifierKeyValuePair>> postAllAssetLinksById(String aasIdentifier, List<IdentifierKeyValuePair> identifierKeyValuePair) {
+        Set<ShellIdentifier> shellIdentifiers = shellService.save(aasIdentifier, shellMapper.fromApi(identifierKeyValuePair));
+        return new ResponseEntity<>(shellMapper.toApiDto(shellIdentifiers), HttpStatus.CREATED);
     }
 }

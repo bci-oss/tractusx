@@ -1,21 +1,18 @@
 package net.catenax.semantics.shell;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import net.catenax.semantics.hub.TestUtils;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.UUID;
 
@@ -26,8 +23,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 public class ShellApiTest {
 
+
     private static final String SHELL_BASE_PATH = "/registry/shell-descriptors";
     private static final String SINGLE_SHELL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}";
+    private static final String LOOKUP_SHELL_BASE_PATH = "/lookup/shells";
+    private static final String SINGLE_LOOKUP_SHELL_BASE_PATH = "/lookup/shells/{shellIdentifier}";
     private static final String SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors";
     private static final String SINGLE_SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors/{submodelIdentifier}";
 
@@ -42,7 +42,7 @@ public class ShellApiTest {
         ObjectNode shellPayload = createShell();
         performShellCreateRequest( toJson(shellPayload));
 
-        ObjectNode onlyRequiredFieldsShell = createBaseIdPayload(uuid("external"), "exampleShortId");
+        ObjectNode onlyRequiredFieldsShell = createBaseIdPayload("exampleId", "exampleShortId");
         performShellCreateRequest( toJson(onlyRequiredFieldsShell));
     }
 
@@ -195,6 +195,108 @@ public class ShellApiTest {
                 .andExpect( status().isNoContent() );
     }
 
+    @Test
+    public void testCreateSpecificAssetIdsExpectSuccess() throws Exception {
+        ObjectNode shellPayload = createBaseIdPayload("exampleShellId", "exampleIdShort");
+        performShellCreateRequest( toJson(shellPayload));
+        String shellId = getId(shellPayload);
+
+        ArrayNode specificAssetIds = emptyArrayNode()
+                .add(specificAssetId("key1", "value1"))
+                .add(specificAssetId("key2", "value2"));
+
+        mvc.perform(
+                        MockMvcRequestBuilders
+                                .post( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
+                                .accept( MediaType.APPLICATION_JSON )
+                                .contentType( MediaType.APPLICATION_JSON )
+                                .content( toJson(specificAssetIds) )
+                )
+                .andDo( MockMvcResultHandlers.print() )
+                .andExpect( status().isCreated() )
+                .andExpect(content().json(toJson(specificAssetIds)));
+    }
+
+    /**
+     * The API method for creation of specificAssetIds accepts an array of objects.
+     * Invoking the API removes all existing specificAssetIds and adds the new ones.
+     */
+    @Test
+    public void testCreateSpecificAssetIdsReplacesAllExistingSpecificAssetIdsExpectSuccess() throws Exception {
+        ObjectNode shellPayload = createShell();
+        performShellCreateRequest( toJson(shellPayload));
+        String shellId = getId(shellPayload);
+
+        ArrayNode specificAssetIds = emptyArrayNode()
+                .add(specificAssetId("key1", "value1"))
+                .add(specificAssetId("key2", "value2"));
+
+        mvc.perform(
+                        MockMvcRequestBuilders
+                                .post( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
+                                .accept( MediaType.APPLICATION_JSON )
+                                .contentType( MediaType.APPLICATION_JSON )
+                                .content( toJson(specificAssetIds) )
+                )
+                .andDo( MockMvcResultHandlers.print() )
+                .andExpect( status().isCreated() )
+                .andExpect(content().json(toJson(specificAssetIds)));
+
+        // verify that the shell payload does no longer contain the initial specificAssetIds that were provided at creation time
+        ObjectNode expectedShellPayload = shellPayload.deepCopy().set("specificAssetIds", specificAssetIds);
+        mvc.perform(
+                        MockMvcRequestBuilders
+                                .get( SINGLE_SHELL_BASE_PATH, shellId)
+                                .accept( MediaType.APPLICATION_JSON )
+                )
+                .andDo( MockMvcResultHandlers.print() )
+                .andExpect(status().isOk())
+                .andExpect( content().json(toJson(expectedShellPayload)));
+    }
+
+    @Test
+    public void testCreateSpecificIdsExpectNotFound() throws Exception {
+        ArrayNode specificAssetIds = emptyArrayNode()
+                .add(specificAssetId("key1", "value1"));
+        mvc.perform(
+                        MockMvcRequestBuilders
+                                .post( SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell" )
+                                .accept( MediaType.APPLICATION_JSON )
+                                .contentType( MediaType.APPLICATION_JSON )
+                                .content( toJson(specificAssetIds) )
+                )
+                .andDo( MockMvcResultHandlers.print() )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
+    }
+
+    @Test
+    public void testGetSpecificAssetIdsExpectSuccess() throws Exception {
+        ObjectNode shellPayload = createShell();
+        performShellCreateRequest( toJson(shellPayload));
+        String shellId = getId(shellPayload);
+
+        mvc.perform(
+                        MockMvcRequestBuilders
+                                .get( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
+                                .accept( MediaType.APPLICATION_JSON )
+                )
+                .andDo( MockMvcResultHandlers.print() )
+                .andExpect( status().isOk() )
+                .andExpect(content().json(toJson(shellPayload.get("specificAssetIds"))));
+    }
+
+    @Test
+    public void testGetSpecificIdsExpectNotFound() throws Exception {
+        mvc.perform(
+                        MockMvcRequestBuilders
+                                .get( SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
+                                .accept( MediaType.APPLICATION_JSON )
+                )
+                .andDo( MockMvcResultHandlers.print() )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
+    }
 
     @Test
     public void testCreateSubmodelExpectSuccess() throws Exception {
@@ -403,7 +505,7 @@ public class ShellApiTest {
 
 
     private ObjectNode createShell() throws JsonProcessingException {
-        ObjectNode shellPayload = createBaseIdPayload(uuid("external"), "exampleShortId");
+        ObjectNode shellPayload = createBaseIdPayload("exampleShellIdPrefix", "exampleShellShortId");
         shellPayload.set("description", emptyArrayNode()
                 .add(createDescription("en", "this is an example description"))
                 .add(createDescription("de", "das ist ein beispiel")));
@@ -413,19 +515,19 @@ public class ShellApiTest {
                 .add(specificAssetId("enginenumber1", "enginenumber1")));
 
         shellPayload.set("submodelDescriptors", emptyArrayNode()
-                .add(createSubmodel(uuid("submodel_external1")))
-                .add(createSubmodel(uuid("submodel_external2"))));
+                .add(createSubmodel("submodel_external1"))
+                .add(createSubmodel("submodel_external2")));
         return shellPayload;
     }
 
-    private ObjectNode createSubmodel(String submodelId) throws JsonProcessingException {
-        ObjectNode submodelPayload = createBaseIdPayload(submodelId, "exampleShortId");
+    private ObjectNode createSubmodel(String submodelIdPrefix) throws JsonProcessingException {
+        ObjectNode submodelPayload = createBaseIdPayload(submodelIdPrefix, "exampleSubModelShortId");
         submodelPayload.set("description",  emptyArrayNode()
                 .add(createDescription("en", "this is an example submodel description"))
                 .add(createDescription("de", "das ist ein Beispiel submodel")));
         submodelPayload.set("endpoints", emptyArrayNode()
                 .add(createEndpoint()));
-        submodelPayload.set("semanticId", createSemanticId("urn:net.catenax.vehicle:1.0.0#Parts") );
+        submodelPayload.set("semanticId", createSemanticId() );
         return submodelPayload;
     }
 
@@ -439,9 +541,9 @@ public class ShellApiTest {
         return mapper.createArrayNode();
     }
 
-    private ObjectNode createBaseIdPayload(String identification, String idShort) throws JsonProcessingException {
+    private ObjectNode createBaseIdPayload(String idPrefix, String idShort) throws JsonProcessingException {
         ObjectNode objectNode = mapper.createObjectNode();
-        objectNode.put("identification", identification );
+        objectNode.put("identification", uuid(idPrefix) );
         objectNode.put("idShort", idShort );
         return objectNode;
     }
@@ -460,9 +562,9 @@ public class ShellApiTest {
         return specificAssetId;
     }
 
-    private ObjectNode createSemanticId(String value){
+    private ObjectNode createSemanticId(){
         ObjectNode semanticId = mapper.createObjectNode();
-        semanticId.set("value", emptyArrayNode().add(value) );
+        semanticId.set("value", emptyArrayNode().add("urn:net.catenax.vehicle:1.0.0#Parts") );
         return semanticId;
     }
 
@@ -479,8 +581,17 @@ public class ShellApiTest {
         return endpoint;
     }
 
+    private String toJson(JsonNode jsonNode) throws JsonProcessingException {
+        return mapper.writeValueAsString(jsonNode);
+    }
+
     private String toJson(ObjectNode objectNode) throws JsonProcessingException {
         return mapper.writeValueAsString(objectNode);
     }
+
+    private String toJson(ArrayNode objectNode) throws JsonProcessingException {
+        return mapper.writeValueAsString(objectNode);
+    }
+
 
 }
