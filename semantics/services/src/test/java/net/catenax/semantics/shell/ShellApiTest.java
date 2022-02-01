@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -37,441 +39,455 @@ public class ShellApiTest {
     @Autowired
     private ObjectMapper mapper;
 
-    @Test
-    public void testCreateShellExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
+    @Nested
+    @DisplayName("Shell CRUD API")
+    class ShellTests {
+        @Test
+        public void testCreateShellExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
 
-        ObjectNode onlyRequiredFieldsShell = createBaseIdPayload("exampleId", "exampleShortId");
-        performShellCreateRequest( toJson(onlyRequiredFieldsShell));
+            ObjectNode onlyRequiredFieldsShell = createBaseIdPayload("exampleId", "exampleShortId");
+            performShellCreateRequest( toJson(onlyRequiredFieldsShell));
+        }
+
+        @Test
+        public void testGetShellExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId =  getId(shellPayload);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isOk() )
+                    .andExpect(content().json(toJson(shellPayload)));
+        }
+
+        @Test
+        public void testGetShellExpectNotFound() throws Exception {
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SHELL_BASE_PATH, "NotExistingShellId")
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNotFound() );
+        }
+
+        @Test
+        public void testGetAllShellsExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SHELL_BASE_PATH)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isOk() )
+                    .andExpect( jsonPath( "$.[*]" ).isArray() )
+                    // we expect at least on entry
+                    .andExpect( jsonPath( "$.[*]", hasSize(greaterThan(0)) ) );
+        }
+
+        @Test
+        public void testUpdateShellExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+
+            ObjectNode updateDescription = shellPayload.deepCopy();
+            updateDescription.set("description", emptyArrayNode()
+                    .add(createDescription("fr", "exampleFrtext")));
+            String shellId =  updateDescription.get("identification").textValue();
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(updateDescription) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNoContent() );
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isOk() )
+                    .andExpect(content().json(toJson(updateDescription)));
+        }
+
+
+        @Test
+        public void testUpdateShellExpectNotFound() throws Exception {
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put( SINGLE_SHELL_BASE_PATH, "shellIdthatdoesnotexists")
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(createShell()) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNotFound() )
+                    .andExpect(jsonPath("$.error.message", is("Shell for identifier shellIdthatdoesnotexists not found")));
+        }
+
+        @Test
+        public void testUpdateShellWithDifferentIdInPayloadExpectPathIdIsTaken() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            // assigning a new identification to an existing shell must not be possible in an update
+            ObjectNode updatedShell = shellPayload.deepCopy()
+                    .put("identification", "newIdInUpdateRequest")
+                    .put("idShort", "newIdShortInUpdateRequest");
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(updatedShell) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNoContent() );
+
+            // verify that anything expect the identification can be updated
+            ObjectNode expectedShellAfterUpdate = updatedShell
+                    .deepCopy()
+                    .put("identification", shellId);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isOk() )
+                    .andExpect(content().json(toJson(expectedShellAfterUpdate)));
+        }
+
+        @Test
+        public void testDeleteShellExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId =  getId(shellPayload);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNoContent() );
+        }
+
+        @Test
+        public void testDeleteShellExpectNotFound() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId =  getId(shellPayload);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNoContent() );
+        }
     }
 
-    @Test
-    public void testGetShellExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId =  getId(shellPayload);
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isOk() )
-                .andExpect(content().json(toJson(shellPayload)));
+    @Nested
+    @DisplayName("SpecificAssetId CRUD API")
+    class SpecificAssetIdAPITests {
+        @Test
+        public void testCreateSpecificAssetIdsExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createBaseIdPayload("exampleShellId", "exampleIdShort");
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            ArrayNode specificAssetIds = emptyArrayNode()
+                    .add(specificAssetId("key1", "value1"))
+                    .add(specificAssetId("key2", "value2"));
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .post( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(specificAssetIds) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isCreated() )
+                    .andExpect(content().json(toJson(specificAssetIds)));
+        }
+
+        /**
+         * The API method for creation of specificAssetIds accepts an array of objects.
+         * Invoking the API removes all existing specificAssetIds and adds the new ones.
+         */
+        @Test
+        public void testCreateSpecificAssetIdsReplacesAllExistingSpecificAssetIdsExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            ArrayNode specificAssetIds = emptyArrayNode()
+                    .add(specificAssetId("key1", "value1"))
+                    .add(specificAssetId("key2", "value2"));
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .post( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(specificAssetIds) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isCreated() )
+                    .andExpect(content().json(toJson(specificAssetIds)));
+
+            // verify that the shell payload does no longer contain the initial specificAssetIds that were provided at creation time
+            ObjectNode expectedShellPayload = shellPayload.deepCopy().set("specificAssetIds", specificAssetIds);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isOk())
+                    .andExpect( content().json(toJson(expectedShellPayload)));
+        }
+
+        @Test
+        public void testCreateSpecificIdsExpectNotFound() throws Exception {
+            ArrayNode specificAssetIds = emptyArrayNode()
+                    .add(specificAssetId("key1", "value1"));
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .post( SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell" )
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(specificAssetIds) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
+        }
+
+        @Test
+        public void testGetSpecificAssetIdsExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isOk() )
+                    .andExpect(content().json(toJson(shellPayload.get("specificAssetIds"))));
+        }
+
+        @Test
+        public void testGetSpecificIdsExpectNotFound() throws Exception {
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
+        }
     }
 
-    @Test
-    public void testGetShellExpectNotFound() throws Exception {
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SHELL_BASE_PATH, "NotExistingShellId")
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNotFound() );
+
+    @Nested
+    @DisplayName("Submodel CRUD API")
+    class SubmodelApiTest {
+        @Test
+        public void testCreateSubmodelExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            ObjectNode submodel = createSubmodel(uuid("submodelExample"));
+            performSubmodelCreateRequest(toJson(submodel), shellId);
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SHELL_BASE_PATH, shellId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isOk())
+                    .andExpect( jsonPath( "$.submodelDescriptors" ,  hasSize(3) ))
+                    .andExpect(jsonPath("$.submodelDescriptors[*].identification", hasItem(getId(submodel))));
+        }
+
+        @Test
+        public void testUpdateSubModelExpectSuccess() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            ObjectNode submodel = createSubmodel(uuid("submodelExample"));
+            performSubmodelCreateRequest(toJson(submodel), shellId);
+            String submodelId = getId(submodel);
+
+            ObjectNode updatedSubmodel = submodel.deepCopy()
+                    .put("idShort", "updatedSubmodelId").set("description", emptyArrayNode()
+                            .add(createDescription("es", "spanish description" )));
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(updatedSubmodel) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNoContent());
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isOk())
+                    .andExpect(content().json(toJson(updatedSubmodel)));
+        }
+
+        @Test
+        public void testUpdateSubmodelExpectNotFound() throws Exception {
+            // verify shell is missing
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SUB_MODEL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
+
+
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+            // verify submodel is missing
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, "notexistingsubmodel")
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error.message", is("Submodel for identifier notexistingsubmodel not found.")));
+        }
+
+        @Test
+        public void testUpdateSubmodelWithDifferentIdInPayloadExpectPathIdIsTaken() throws Exception {
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            ObjectNode submodel = createSubmodel(uuid("submodelExample"));
+            performSubmodelCreateRequest(toJson(submodel), shellId);
+            String submodelId = getId(submodel);
+
+            // assigning a new identification to an existing submodel must not be possible in an update
+            ObjectNode updatedSubmodel = submodel.deepCopy()
+                    .put("identification", "newIdInUpdateRequest")
+                    .put("idShort", "newIdShortInUpdateRequest");
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                                    .contentType( MediaType.APPLICATION_JSON )
+                                    .content( toJson(updatedSubmodel) )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isNoContent() );
+
+            // verify that anything expect the identification can be updated
+            ObjectNode expectedShellAfterUpdate = updatedSubmodel
+                    .deepCopy()
+                    .put("identification", submodelId);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect( status().isOk() )
+                    .andExpect(content().json(toJson(expectedShellAfterUpdate)));
+        }
+
+        @Test
+        public void testDeleteSubmodelExpectSuccess() throws Exception {
+
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+
+            ObjectNode submodel = createSubmodel(uuid("submodelExample"));
+            performSubmodelCreateRequest(toJson(submodel), shellId);
+            String submodelId = getId(submodel);
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNoContent());
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        public void testDeleteSubmodelExpectNotFound() throws Exception {
+            // verify shell is missing
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete( SINGLE_SUB_MODEL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
+
+
+            ObjectNode shellPayload = createShell();
+            performShellCreateRequest( toJson(shellPayload));
+            String shellId = getId(shellPayload);
+            // verify submodel is missing
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete( SINGLE_SUB_MODEL_BASE_PATH, shellId, "notexistingsubmodel")
+                                    .accept( MediaType.APPLICATION_JSON )
+                    )
+                    .andDo( MockMvcResultHandlers.print() )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error.message", is("Submodel for identifier notexistingsubmodel not found.")));
+        }
     }
 
-    @Test
-    public void testGetAllShellsExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SHELL_BASE_PATH)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isOk() )
-                .andExpect( jsonPath( "$.[*]" ).isArray() )
-                // we expect at least on entry
-                .andExpect( jsonPath( "$.[*]", hasSize(greaterThan(0)) ) );
-    }
-
-    @Test
-    public void testUpdateShellExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-
-        ObjectNode updateDescription = shellPayload.deepCopy();
-        updateDescription.set("description", emptyArrayNode()
-                .add(createDescription("fr", "exampleFrtext")));
-        String shellId =  updateDescription.get("identification").textValue();
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .put( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(updateDescription) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNoContent() );
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isOk() )
-                .andExpect(content().json(toJson(updateDescription)));
-    }
-
-
-    @Test
-    public void testUpdateShellExpectNotFound() throws Exception {
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .put( SINGLE_SHELL_BASE_PATH, "shellIdthatdoesnotexists")
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(createShell()) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNotFound() )
-                .andExpect(jsonPath("$.error.message", is("Shell for identifier shellIdthatdoesnotexists not found")));
-    }
-
-    @Test
-    public void testUpdateShellWithDifferentIdInPayloadExpectPathIdIsTaken() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        // assigning a new identification to an existing shell must not be possible in an update
-        ObjectNode updatedShell = shellPayload.deepCopy()
-                .put("identification", "newIdInUpdateRequest")
-                .put("idShort", "newIdShortInUpdateRequest");
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .put( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(updatedShell) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNoContent() );
-
-        // verify that anything expect the identification can be updated
-        ObjectNode expectedShellAfterUpdate = updatedShell
-                .deepCopy()
-                .put("identification", shellId);
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isOk() )
-                .andExpect(content().json(toJson(expectedShellAfterUpdate)));
-    }
-
-    @Test
-    public void testDeleteShellExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId =  getId(shellPayload);
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .delete( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNoContent() );
-    }
-
-    @Test
-    public void testDeleteShellExpectNotFound() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId =  getId(shellPayload);
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .delete( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNoContent() );
-    }
-
-    @Test
-    public void testCreateSpecificAssetIdsExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createBaseIdPayload("exampleShellId", "exampleIdShort");
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        ArrayNode specificAssetIds = emptyArrayNode()
-                .add(specificAssetId("key1", "value1"))
-                .add(specificAssetId("key2", "value2"));
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .post( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(specificAssetIds) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isCreated() )
-                .andExpect(content().json(toJson(specificAssetIds)));
-    }
-
-    /**
-     * The API method for creation of specificAssetIds accepts an array of objects.
-     * Invoking the API removes all existing specificAssetIds and adds the new ones.
-     */
-    @Test
-    public void testCreateSpecificAssetIdsReplacesAllExistingSpecificAssetIdsExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        ArrayNode specificAssetIds = emptyArrayNode()
-                .add(specificAssetId("key1", "value1"))
-                .add(specificAssetId("key2", "value2"));
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .post( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(specificAssetIds) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isCreated() )
-                .andExpect(content().json(toJson(specificAssetIds)));
-
-        // verify that the shell payload does no longer contain the initial specificAssetIds that were provided at creation time
-        ObjectNode expectedShellPayload = shellPayload.deepCopy().set("specificAssetIds", specificAssetIds);
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isOk())
-                .andExpect( content().json(toJson(expectedShellPayload)));
-    }
-
-    @Test
-    public void testCreateSpecificIdsExpectNotFound() throws Exception {
-        ArrayNode specificAssetIds = emptyArrayNode()
-                .add(specificAssetId("key1", "value1"));
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .post( SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell" )
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(specificAssetIds) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
-    }
-
-    @Test
-    public void testGetSpecificAssetIdsExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_LOOKUP_SHELL_BASE_PATH, shellId )
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isOk() )
-                .andExpect(content().json(toJson(shellPayload.get("specificAssetIds"))));
-    }
-
-    @Test
-    public void testGetSpecificIdsExpectNotFound() throws Exception {
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
-    }
-
-    @Test
-    public void testCreateSubmodelExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        ObjectNode submodel = createSubmodel(uuid("submodelExample"));
-        performSubmodelCreateRequest(toJson(submodel), shellId);
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SHELL_BASE_PATH, shellId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isOk())
-                .andExpect( jsonPath( "$.submodelDescriptors" ,  hasSize(3) ))
-                .andExpect(jsonPath("$.submodelDescriptors[*].identification", hasItem(getId(submodel))));
-    }
-
-    @Test
-    public void testUpdateSubModelExpectSuccess() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        ObjectNode submodel = createSubmodel(uuid("submodelExample"));
-        performSubmodelCreateRequest(toJson(submodel), shellId);
-        String submodelId = getId(submodel);
-
-        ObjectNode updatedSubmodel = submodel.deepCopy()
-                .put("idShort", "updatedSubmodelId").set("description", emptyArrayNode()
-                        .add(createDescription("es", "spanish description" )));
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .put( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(updatedSubmodel) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNoContent());
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isOk())
-                .andExpect(content().json(toJson(updatedSubmodel)));
-    }
-
-    @Test
-    public void testUpdateSubmodelExpectNotFound() throws Exception {
-        // verify shell is missing
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SUB_MODEL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
-
-
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-        // verify submodel is missing
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, "notexistingsubmodel")
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.message", is("Submodel for identifier notexistingsubmodel not found.")));
-    }
-
-    @Test
-    public void testUpdateSubmodelWithDifferentIdInPayloadExpectPathIdIsTaken() throws Exception {
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        ObjectNode submodel = createSubmodel(uuid("submodelExample"));
-        performSubmodelCreateRequest(toJson(submodel), shellId);
-        String submodelId = getId(submodel);
-
-        // assigning a new identification to an existing submodel must not be possible in an update
-        ObjectNode updatedSubmodel = submodel.deepCopy()
-                .put("identification", "newIdInUpdateRequest")
-                .put("idShort", "newIdShortInUpdateRequest");
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .put( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
-                                .accept( MediaType.APPLICATION_JSON )
-                                .contentType( MediaType.APPLICATION_JSON )
-                                .content( toJson(updatedSubmodel) )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isNoContent() );
-
-        // verify that anything expect the identification can be updated
-        ObjectNode expectedShellAfterUpdate = updatedSubmodel
-                .deepCopy()
-                .put("identification", submodelId);
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect( status().isOk() )
-                .andExpect(content().json(toJson(expectedShellAfterUpdate)));
-    }
-
-    @Test
-    public void testDeleteSubmodelExpectSuccess() throws Exception {
-
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-
-        ObjectNode submodel = createSubmodel(uuid("submodelExample"));
-        performSubmodelCreateRequest(toJson(submodel), shellId);
-        String submodelId = getId(submodel);
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .delete( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNoContent());
-
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .get( SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    public void testDeleteSubmodelExpectNotFound() throws Exception {
-        // verify shell is missing
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .delete( SINGLE_SUB_MODEL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.message", is("Shell for identifier notexistingshell not found")));
-
-
-        ObjectNode shellPayload = createShell();
-        performShellCreateRequest( toJson(shellPayload));
-        String shellId = getId(shellPayload);
-        // verify submodel is missing
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .delete( SINGLE_SUB_MODEL_BASE_PATH, shellId, "notexistingsubmodel")
-                                .accept( MediaType.APPLICATION_JSON )
-                )
-                .andDo( MockMvcResultHandlers.print() )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.message", is("Submodel for identifier notexistingsubmodel not found.")));
-    }
 
     private String getId(ObjectNode payload){
         return payload.get("identification").textValue();
