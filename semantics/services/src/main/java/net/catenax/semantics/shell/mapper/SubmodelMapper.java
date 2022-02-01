@@ -8,8 +8,9 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Mappings;
 
 import java.util.List;
+import java.util.Set;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface SubmodelMapper {
     @Mappings({
             @Mapping(target="idExternal", source="apiDto.identification"),
@@ -28,6 +29,9 @@ public interface SubmodelMapper {
             @Mapping(target="subProtocolBodyEncoding", source = "apiDto.protocolInformation.subprotocolBodyEncoding"),
     })
     SubmodelEndpoint fromApiDto(Endpoint apiDto);
+
+    @InheritInverseConfiguration
+    List<SubmodelDescriptor> toApiDto(Set<Submodel> shell);
 
     @InheritInverseConfiguration
     SubmodelDescriptor toApiDto(Submodel shell);

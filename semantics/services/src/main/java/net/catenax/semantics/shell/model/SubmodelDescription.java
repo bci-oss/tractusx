@@ -11,5 +11,4 @@ public class SubmodelDescription {
     UUID id;
     String language;
     String text;
-
 }

@@ -9,7 +9,9 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Mappings;
 
-@Mapper(uses = {SubmodelMapper.class})
+import java.util.List;
+
+@Mapper(uses = {SubmodelMapper.class}, componentModel = "spring")
 public interface ShellMapper {
     @Mappings({
             @Mapping(target = "idExternal", source = "apiDto.identification"),
@@ -23,5 +25,5 @@ public interface ShellMapper {
 
     @InheritInverseConfiguration
     AssetAdministrationShellDescriptor toApiDto(Shell shell);
-
+    List<AssetAdministrationShellDescriptor> toApiDto(List<Shell> shell);
 }

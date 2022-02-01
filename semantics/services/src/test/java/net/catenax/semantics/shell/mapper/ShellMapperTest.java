@@ -20,7 +20,7 @@ public class ShellMapperTest {
     private final ShellMapper mapper = Mappers.getMapper(ShellMapper.class);
 
     @Test
-    public void testMapFromApiExpectSuccess(){
+    public void testMapFromApiExpectSuccess() {
         AssetAdministrationShellDescriptor aas = createCompleteAasDescriptor();
 
         Shell shell = mapper.fromApi(aas);
@@ -28,11 +28,11 @@ public class ShellMapperTest {
         assertThat(shell.getIdShort()).isEqualTo(aas.getIdShort());
 
         assertThat(shell.getIdentifiers())
-                .extracting("key" , "value")
+                .extracting("key", "value")
                 .contains(toIdentifierTuples(aas.getSpecificAssetIds()));
 
         assertThat(shell.getDescriptions())
-                .extracting("language" , "text")
+                .extracting("language", "text")
                 .contains(toDescriptionTuples(aas.getDescription()));
 
 
@@ -65,18 +65,18 @@ public class ShellMapperTest {
     }
 
     @Test
-    public void testMapToApiExpectSuccess(){
+    public void testMapToApiExpectSuccess() {
         Shell shell = createCompleteShell();
         AssetAdministrationShellDescriptor aas = mapper.toApiDto(shell);
         assertThat(aas.getIdentification()).isEqualTo(shell.getIdExternal());
         assertThat(aas.getIdShort()).isEqualTo(shell.getIdShort());
 
         assertThat(aas.getSpecificAssetIds())
-                .extracting("key" , "value")
+                .extracting("key", "value")
                 .contains(createTuplesForShellIdentifier(shell.getIdentifiers()));
 
         assertThat(aas.getDescription())
-                .extracting("language" , "text")
+                .extracting("language", "text")
                 .contains(createTuplesForShellDescriptionTuples(shell.getDescriptions()));
 
         assertThat(aas.getSubmodelDescriptors()).hasSize(1);
@@ -89,7 +89,7 @@ public class ShellMapperTest {
         assertThat(apiSubmodelDescriptor.getIdShort()).isEqualTo(submodel.getIdShort());
 
         assertThat(apiSubmodelDescriptor.getDescription())
-                .extracting("language" , "text")
+                .extracting("language", "text")
                 .contains(createTuplesForSubmodelDescriptionTuples(submodel.getDescriptions()));
 
         assertThat(apiSubmodelDescriptor.getEndpoints()).hasSize(1);
@@ -104,10 +104,10 @@ public class ShellMapperTest {
         assertThat(apiProtocolInformation.getSubprotocolBodyEncoding()).isEqualTo(submodelEndpoint.getSubProtocolBodyEncoding());
     }
 
-    private Shell createCompleteShell(){
+    private Shell createCompleteShell() {
         ShellIdentifier shellIdentifier1 = new ShellIdentifier(UUID.randomUUID(), "key1", "value1");
         ShellIdentifier shellIdentifier2 = new ShellIdentifier(UUID.randomUUID(), "key1", "value1");
-        Set<ShellIdentifier> shellIdentifiers = Set.of(shellIdentifier1,shellIdentifier2);
+        Set<ShellIdentifier> shellIdentifiers = Set.of(shellIdentifier1, shellIdentifier2);
 
         ShellDescription shellDescription1 = new ShellDescription(UUID.randomUUID(), "en", "example description1");
         ShellDescription shellDescription2 = new ShellDescription(UUID.randomUUID(), "de", "exampleDescription2");
@@ -123,7 +123,8 @@ public class ShellMapperTest {
                         "endpointAddressExample", "endpointProtocolExample",
                         "endpointProtocolVersionExample", "subProtocolExample"
                         , "subProtocolBodyExample", "subProtocolEncodingExample"
-                        ))
+                )),
+                null
         );
 
         return new Shell(UUID.randomUUID(), "idExternalExample", "idShortExample",
@@ -131,7 +132,7 @@ public class ShellMapperTest {
     }
 
 
-    private AssetAdministrationShellDescriptor createCompleteAasDescriptor(){
+    private AssetAdministrationShellDescriptor createCompleteAasDescriptor() {
         AssetAdministrationShellDescriptor aas = new AssetAdministrationShellDescriptor();
         aas.setIdentification("identificationExample");
         aas.setIdShort("idShortExample");
@@ -178,32 +179,32 @@ public class ShellMapperTest {
         return aas;
     }
 
-    private Tuple[] createTuplesForShellIdentifier(Set<ShellIdentifier> identifiers){
-        return  identifiers.stream()
+    private Tuple[] createTuplesForShellIdentifier(Set<ShellIdentifier> identifiers) {
+        return identifiers.stream()
                 .map(identifier -> tuple(identifier.getKey(), identifier.getValue()))
                 .toArray(Tuple[]::new);
     }
 
-    private Tuple[] createTuplesForShellDescriptionTuples(Set<ShellDescription> descriptions){
-        return  descriptions.stream()
+    private Tuple[] createTuplesForShellDescriptionTuples(Set<ShellDescription> descriptions) {
+        return descriptions.stream()
                 .map(description -> tuple(description.getLanguage(), description.getText()))
                 .toArray(Tuple[]::new);
     }
 
-    private Tuple[] createTuplesForSubmodelDescriptionTuples(Set<SubmodelDescription> descriptions){
-        return  descriptions.stream()
+    private Tuple[] createTuplesForSubmodelDescriptionTuples(Set<SubmodelDescription> descriptions) {
+        return descriptions.stream()
                 .map(description -> tuple(description.getLanguage(), description.getText()))
                 .toArray(Tuple[]::new);
     }
 
-    private Tuple[] toIdentifierTuples(List<IdentifierKeyValuePair> identifiers){
-        return  identifiers.stream()
+    private Tuple[] toIdentifierTuples(List<IdentifierKeyValuePair> identifiers) {
+        return identifiers.stream()
                 .map(identifier -> tuple(identifier.getKey(), identifier.getValue()))
                 .toArray(Tuple[]::new);
     }
 
-    private Tuple[] toDescriptionTuples(List<LangString> descriptions){
-        return  descriptions.stream()
+    private Tuple[] toDescriptionTuples(List<LangString> descriptions) {
+        return descriptions.stream()
                 .map(description -> tuple(description.getLanguage(), description.getText()))
                 .toArray(Tuple[]::new);
     }
