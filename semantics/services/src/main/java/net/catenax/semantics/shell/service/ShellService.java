@@ -11,12 +11,10 @@ import net.catenax.semantics.shell.repository.ShellRepository;
 import net.catenax.semantics.shell.repository.SubmodelRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 public class ShellService {
@@ -81,29 +79,35 @@ public class ShellService {
 
     public Submodel update(String externalShellId, String externalSubmodelId, Submodel submodel){
         IdOnly shellId = findShellIdByExternalId(externalShellId);
-        Submodel submodelFromDb = findSubmodelByExternalId(externalSubmodelId, shellId.getId());
+        IdOnly subModelId = findSubmodelId(shellId.getId(), externalSubmodelId);
         return submodelRepository.save(submodel
-                .withId(submodelFromDb.getId())
+                .withId(subModelId.getId())
                 .withShellId(shellId.getId())
         );
     }
 
     public void deleteSubmodel(String externalShellId, String externalSubModelId) {
         IdOnly shellId = findShellIdByExternalId(externalShellId);
-        Submodel submodel = findSubmodelByExternalId(externalSubModelId, shellId.getId());
-        submodelRepository.deleteById(submodel.getId());
+        IdOnly submodelId = findSubmodelId(shellId.getId(), externalSubModelId);
+        submodelRepository.deleteById(submodelId.getId());
     }
 
-    public Submodel findSubmodelByExternalId(String externalSubModelId, UUID shellId){
+    public Submodel findSubmodelByExternalId(String externalShellId, String externalSubModelId){
+        IdOnly shellIdByExternalId = findShellIdByExternalId(externalShellId);
         return submodelRepository
-                .findByIdExternalAndShellId(externalSubModelId, shellId)
+                .findByShellIdAndIdExternal(shellIdByExternalId.getId(), externalSubModelId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
     }
+
+    public IdOnly findSubmodelId(UUID shellId, String externalSubModelId ){
+        return submodelRepository
+                .findIdOnlyByShellIdAndIdExternal(shellId, externalSubModelId)
+                .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
+    }
+
 
     public IdOnly findShellIdByExternalId(String externalShellId){
         return shellRepository.findIdOnlyByIdExternal(externalShellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Shell for identifier %s not found", externalShellId)));
     }
-
-
 }

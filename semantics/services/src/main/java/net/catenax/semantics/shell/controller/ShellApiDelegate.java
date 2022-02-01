@@ -10,6 +10,7 @@ import net.catenax.semantics.shell.mapper.SubmodelMapper;
 import net.catenax.semantics.shell.model.Shell;
 import net.catenax.semantics.shell.model.ShellIdentifier;
 import net.catenax.semantics.shell.model.Submodel;
+import net.catenax.semantics.shell.model.projection.IdOnly;
 import net.catenax.semantics.shell.service.ShellService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -70,8 +71,7 @@ public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate 
 
     @Override
     public ResponseEntity<SubmodelDescriptor> getSubmodelDescriptorById(String aasIdentifier, String submodelIdentifier) {
-        Shell shell = shellService.findShellByExternalId(aasIdentifier);
-        Submodel submodel = shellService.findSubmodelByExternalId(submodelIdentifier, shell.getId());
+        Submodel submodel = shellService.findSubmodelByExternalId(aasIdentifier, submodelIdentifier);
         return new ResponseEntity<>(submodelMapper.toApiDto(submodel), HttpStatus.OK);
     }
 
