@@ -210,7 +210,7 @@ public class AssetAdministrationShellApiTest {
     }
 
     @Nested
-    @DisplayName("SpecificAssetId CRUD API")
+    @DisplayName("Shell SpecificAssetId CRUD API")
     class SpecificAssetIdAPITests {
         @Test
         public void testCreateSpecificAssetIdsExpectSuccess() throws Exception {

@@ -1,7 +1,7 @@
 package net.catenax.semantics.registry.repository;
 
 import net.catenax.semantics.registry.model.Submodel;
-import net.catenax.semantics.registry.model.projection.IdOnly;
+import net.catenax.semantics.registry.model.projection.SubmodelMinimal;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -15,5 +15,5 @@ public interface SubmodelRepository extends CrudRepository<Submodel, UUID> {
     Optional<Submodel> findByShellIdAndIdExternal(UUID shellId, String externalId);
 
     @Query("select s.id from submodel s where s.fk_shell_id = :shellId and s.id_external = :externalId")
-    Optional<IdOnly> findIdOnlyByShellIdAndIdExternal(UUID shellId, String externalId);
+    Optional<SubmodelMinimal> findMinimalRepresentationByShellIdAndIdExternal(UUID shellId, String externalId);
 }

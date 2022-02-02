@@ -5,7 +5,8 @@ import net.catenax.semantics.registry.dto.ShellCollectionDto;
 import net.catenax.semantics.registry.model.Shell;
 import net.catenax.semantics.registry.model.ShellIdentifier;
 import net.catenax.semantics.registry.model.Submodel;
-import net.catenax.semantics.registry.model.projection.IdOnly;
+import net.catenax.semantics.registry.model.projection.ShellMinimal;
+import net.catenax.semantics.registry.model.projection.SubmodelMinimal;
 import net.catenax.semantics.registry.repository.ShellIdentifierRepository;
 import net.catenax.semantics.registry.repository.ShellRepository;
 import net.catenax.semantics.registry.repository.SubmodelRepository;
@@ -68,7 +69,7 @@ public class ShellService {
 
     @Transactional
     public Shell update(String externalShellId, Shell shell){
-        Shell shellFromDb = findShellByExternalId(externalShellId);
+        ShellMinimal shellFromDb = findShellMinimalByExternalId(externalShellId);
         return shellRepository.save(
                 shell.withId(shellFromDb.getId()).withCreatedDate(shellFromDb.getCreatedDate())
         );
@@ -76,25 +77,25 @@ public class ShellService {
 
     @Transactional
     public void deleteShell(String externalShellId) {
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
         shellRepository.deleteById(shellId.getId());
     }
 
     @Transactional(readOnly = true)
     public Set<ShellIdentifier> findShellIdentifiersByExternalShellId(String externalShellId){
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
         return shellIdentifierRepository.findByShellId(shellId.getId());
     }
 
     @Transactional
     public void deleteAllIdentifiers(String externalShellId){
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
         shellIdentifierRepository.deleteShellIdentifiersByShellId(shellId.getId());
     }
 
     @Transactional
     public Set<ShellIdentifier> save(String externalShellId, Set<ShellIdentifier> shellIdentifiers){
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
         shellIdentifierRepository.deleteShellIdentifiersByShellId(shellId.getId());
 
         List<ShellIdentifier> identifiersToUpdate = shellIdentifiers.stream().map(identifier -> identifier.withShellId(shellId.getId()))
@@ -104,14 +105,14 @@ public class ShellService {
 
     @Transactional
     public Submodel save(String externalShellId, Submodel submodel){
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
         return submodelRepository.save(submodel.withShellId(shellId.getId()));
     }
 
     @Transactional
     public Submodel update(String externalShellId, String externalSubmodelId, Submodel submodel){
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
-        IdOnly subModelId = findSubmodelId(shellId.getId(), externalSubmodelId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
+        SubmodelMinimal subModelId = findSubmodelMinimalByExternalId(shellId.getId(), externalSubmodelId);
         return submodelRepository.save(submodel
                 .withId(subModelId.getId())
                 .withShellId(shellId.getId())
@@ -120,29 +121,27 @@ public class ShellService {
 
     @Transactional
     public void deleteSubmodel(String externalShellId, String externalSubModelId) {
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
-        IdOnly submodelId = findSubmodelId(shellId.getId(), externalSubModelId);
+        ShellMinimal shellId = findShellMinimalByExternalId(externalShellId);
+        SubmodelMinimal submodelId = findSubmodelMinimalByExternalId(shellId.getId(), externalSubModelId);
         submodelRepository.deleteById(submodelId.getId());
     }
 
     @Transactional(readOnly = true)
     public Submodel findSubmodelByExternalId(String externalShellId, String externalSubModelId){
-        IdOnly shellIdByExternalId = findShellIdByExternalId(externalShellId);
+        ShellMinimal shellIdByExternalId = findShellMinimalByExternalId(externalShellId);
         return submodelRepository
                 .findByShellIdAndIdExternal(shellIdByExternalId.getId(), externalSubModelId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
     }
 
-    @Transactional(readOnly = true)
-    public IdOnly findSubmodelId(UUID shellId, String externalSubModelId ){
+    private SubmodelMinimal findSubmodelMinimalByExternalId(UUID shellId, String externalSubModelId ){
         return submodelRepository
-                .findIdOnlyByShellIdAndIdExternal(shellId, externalSubModelId)
+                .findMinimalRepresentationByShellIdAndIdExternal(shellId, externalSubModelId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Submodel for identifier %s not found.", externalSubModelId)));
     }
 
-    @Transactional(readOnly = true)
-    public IdOnly findShellIdByExternalId(String externalShellId){
-        return shellRepository.findIdOnlyByIdExternal(externalShellId)
+    private ShellMinimal findShellMinimalByExternalId(String externalShellId){
+        return shellRepository.findMinimalRepresentationByIdExternal(externalShellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Shell for identifier %s not found", externalShellId)));
     }
 }
