@@ -17,15 +17,12 @@ package net.catenax.semantics.registry.mapper;
 
 import net.catenax.semantics.aas.registry.model.*;
 import net.catenax.semantics.registry.model.*;
-import org.mapstruct.InheritInverseConfiguration;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.Mappings;
+import org.mapstruct.*;
 
 import java.util.List;
 import java.util.Set;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface SubmodelMapper {
     @Mappings({
             @Mapping(target="idExternal", source="apiDto.identification"),

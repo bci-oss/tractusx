@@ -4,7 +4,6 @@ import net.catenax.semantics.aas.registry.model.*;
 import net.catenax.semantics.registry.model.*;
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 import java.util.Set;
@@ -14,13 +13,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.tuple;
 
 public class ShellMapperTest {
-    private final ShellMapper mapper = Mappers.getMapper(ShellMapper.class);
+    private final ShellMapper mapper = new ShellMapperImpl( new SubmodelMapperImpl() );
 
     @Test
     public void testMapFromApiExpectSuccess() {
         AssetAdministrationShellDescriptor aas = createCompleteAasDescriptor();
 
-        Shell shell = mapper.fromApi(aas);
+        Shell shell = mapper.fromApiDto(aas);
         assertThat(shell.getIdExternal()).isEqualTo(aas.getIdentification());
         assertThat(shell.getIdShort()).isEqualTo(aas.getIdShort());
 

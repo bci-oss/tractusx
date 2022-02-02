@@ -93,7 +93,7 @@ public class AssetAdministrationShellApiDelegate implements RegistryApiDelegate,
 
     @Override
     public ResponseEntity<AssetAdministrationShellDescriptor> postAssetAdministrationShellDescriptor(AssetAdministrationShellDescriptor assetAdministrationShellDescriptor) {
-        Shell saved = shellService.save(shellMapper.fromApi(assetAdministrationShellDescriptor));
+        Shell saved = shellService.save(shellMapper.fromApiDto(assetAdministrationShellDescriptor));
         return new ResponseEntity<>(shellMapper.toApiDto(saved), HttpStatus.OK);
     }
 
@@ -105,7 +105,7 @@ public class AssetAdministrationShellApiDelegate implements RegistryApiDelegate,
 
     @Override
     public ResponseEntity<Void> putAssetAdministrationShellDescriptorById(String aasIdentifier, AssetAdministrationShellDescriptor assetAdministrationShellDescriptor) {
-        shellService.update(aasIdentifier, shellMapper.fromApi(assetAdministrationShellDescriptor)
+        shellService.update(aasIdentifier, shellMapper.fromApiDto(assetAdministrationShellDescriptor)
                 // the external id in the payload must not differ from the path parameter and will be overridden
                 .withIdExternal(aasIdentifier));
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -130,7 +130,7 @@ public class AssetAdministrationShellApiDelegate implements RegistryApiDelegate,
         if( assetIds == null || assetIds.isEmpty()){
             return new ResponseEntity<>(Collections.emptyList(), HttpStatus.OK);
         }
-        List<String> externalIds = shellService.findExternalShellIdsByIdentifiers(shellMapper.fromApi(assetIds));
+        List<String> externalIds = shellService.findExternalShellIdsByIdentifiers(shellMapper.fromApiDto(assetIds));
         return new ResponseEntity<>(externalIds, HttpStatus.OK);
     }
 
@@ -142,7 +142,7 @@ public class AssetAdministrationShellApiDelegate implements RegistryApiDelegate,
 
     @Override
     public ResponseEntity<List<IdentifierKeyValuePair>> postAllAssetLinksById(String aasIdentifier, List<IdentifierKeyValuePair> identifierKeyValuePair) {
-        Set<ShellIdentifier> shellIdentifiers = shellService.save(aasIdentifier, shellMapper.fromApi(identifierKeyValuePair));
+        Set<ShellIdentifier> shellIdentifiers = shellService.save(aasIdentifier, shellMapper.fromApiDto(identifierKeyValuePair));
         return new ResponseEntity<>(shellMapper.toApiDto(shellIdentifiers), HttpStatus.CREATED);
     }
 }
