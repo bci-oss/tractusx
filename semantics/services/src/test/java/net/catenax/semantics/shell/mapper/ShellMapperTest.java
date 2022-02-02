@@ -128,7 +128,7 @@ public class ShellMapperTest {
         );
 
         return new Shell(UUID.randomUUID(), "idExternalExample", "idShortExample",
-                shellIdentifiers, shellDescriptions, Set.of(submodel));
+                shellIdentifiers, shellDescriptions, Set.of(submodel), null, null);
     }
 
 

@@ -23,6 +23,16 @@ databaseChangeLog:
                   type: nvarchar(100)
                   constraints:
                     nullable: false
+              - column:
+                  name: CREATED_DATE
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: LAST_MODIFIED_DATE
+                  type: timestamp
+                  constraints:
+                    nullable: false
         - addUniqueConstraint:
             columnNames: ID_EXTERNAL
             constraintName: SHELL_AK_01

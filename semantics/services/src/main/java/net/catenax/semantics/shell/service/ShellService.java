@@ -2,6 +2,7 @@ package net.catenax.semantics.shell.service;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import net.catenax.semantics.shell.dto.ShellCollectionDto;
 import net.catenax.semantics.shell.model.Shell;
 import net.catenax.semantics.shell.model.ShellIdentifier;
 import net.catenax.semantics.shell.model.Submodel;
@@ -9,6 +10,10 @@ import net.catenax.semantics.shell.model.projection.IdOnly;
 import net.catenax.semantics.shell.repository.ShellIdentifierRepository;
 import net.catenax.semantics.shell.repository.ShellRepository;
 import net.catenax.semantics.shell.repository.SubmodelRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,15 +46,26 @@ public class ShellService {
         return shellRepository.findByIdExternal(externalShellId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Shell for identifier %s not found", externalShellId)));
     }
+
     @Transactional(readOnly = true)
-    public List<Shell> findAllShells(){
-        return ImmutableList.copyOf(shellRepository.findAll());
+    public ShellCollectionDto findAllShells(int page, int pageSize){
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.Direction.ASC, "createdDate");
+        Page<Shell> shellsPage = shellRepository.findAll(pageable);
+        return ShellCollectionDto.builder()
+                .currentPage(pageable.getPageNumber())
+                .totalItems((int)shellsPage.getTotalElements())
+                .totalPages(shellsPage.getTotalPages())
+                .itemCount(shellsPage.getNumberOfElements())
+                .items(shellsPage.getContent())
+                .build();
     }
 
     @Transactional
     public Shell update(String externalShellId, Shell shell){
-        IdOnly shellId = findShellIdByExternalId(externalShellId);
-        return shellRepository.save(shell.withId(shellId.getId()));
+        Shell shellFromDb = findShellByExternalId(externalShellId);
+        return shellRepository.save(
+                shell.withId(shellFromDb.getId()).withCreatedDate(shellFromDb.getCreatedDate())
+        );
     }
 
     @Transactional

@@ -3,6 +3,7 @@ package net.catenax.semantics.shell.controller;
 import net.catenax.semantics.aas.registry.api.LookupApiDelegate;
 import net.catenax.semantics.aas.registry.api.RegistryApiDelegate;
 import net.catenax.semantics.aas.registry.model.AssetAdministrationShellDescriptor;
+import net.catenax.semantics.aas.registry.model.AssetAdministrationShellDescriptorCollection;
 import net.catenax.semantics.aas.registry.model.IdentifierKeyValuePair;
 import net.catenax.semantics.aas.registry.model.SubmodelDescriptor;
 import net.catenax.semantics.shell.mapper.ShellMapper;
@@ -10,7 +11,6 @@ import net.catenax.semantics.shell.mapper.SubmodelMapper;
 import net.catenax.semantics.shell.model.Shell;
 import net.catenax.semantics.shell.model.ShellIdentifier;
 import net.catenax.semantics.shell.model.Submodel;
-import net.catenax.semantics.shell.model.projection.IdOnly;
 import net.catenax.semantics.shell.service.ShellService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +41,11 @@ public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate 
     }
 
     @Override
+    public ResponseEntity<AssetAdministrationShellDescriptorCollection> getAllAssetAdministrationShellDescriptors(Integer page, Integer pageSize) {
+        return new ResponseEntity<>(shellMapper.toApiDto(shellService.findAllShells(page, pageSize)), HttpStatus.OK);
+    }
+
+    @Override
     public ResponseEntity<Void> deleteAssetAdministrationShellDescriptorById(String aasIdentifier) {
         shellService.deleteShell(aasIdentifier);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -52,10 +57,7 @@ public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @Override
-    public ResponseEntity<List<AssetAdministrationShellDescriptor>> getAllAssetAdministrationShellDescriptors() {
-        return new ResponseEntity<>(shellMapper.toApiDto(shellService.findAllShells()), HttpStatus.OK);
-    }
+
 
     @Override
     public ResponseEntity<List<SubmodelDescriptor>> getAllSubmodelDescriptors(String aasIdentifier) {

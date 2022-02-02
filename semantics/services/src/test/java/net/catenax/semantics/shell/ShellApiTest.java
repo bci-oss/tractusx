@@ -42,6 +42,7 @@ public class ShellApiTest {
     @Nested
     @DisplayName("Shell CRUD API")
     class ShellTests {
+
         @Test
         public void testCreateShellExpectSuccess() throws Exception {
             ObjectNode shellPayload = createShell();
@@ -83,14 +84,18 @@ public class ShellApiTest {
             performShellCreateRequest( toJson(shellPayload));
             mvc.perform(
                             MockMvcRequestBuilders
-                                    .get( SHELL_BASE_PATH)
+                                    .get( SHELL_BASE_PATH )
+                                    .queryParam("pageSize", "100")
                                     .accept( MediaType.APPLICATION_JSON )
                     )
                     .andDo( MockMvcResultHandlers.print() )
                     .andExpect( status().isOk() )
-                    .andExpect( jsonPath( "$.[*]" ).isArray() )
-                    // we expect at least on entry
-                    .andExpect( jsonPath( "$.[*]", hasSize(greaterThan(0)) ) );
+                    .andExpect( jsonPath( "$.items" ).exists() )
+                    .andExpect( jsonPath( "$.items[*].identification", hasItem(getId(shellPayload))))
+                    .andExpect( jsonPath( "$.totalItems", is(greaterThan(0))) )
+                    .andExpect( jsonPath( "$.currentPage", is(0)) )
+                    .andExpect( jsonPath( "$.totalPages",  is(greaterThan(0))) )
+                    .andExpect( jsonPath( "$.itemCount",  is(greaterThan(0))) );
         }
 
         @Test

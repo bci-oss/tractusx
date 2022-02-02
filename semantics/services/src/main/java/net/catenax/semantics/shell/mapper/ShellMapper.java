@@ -1,7 +1,9 @@
 package net.catenax.semantics.shell.mapper;
 
 import net.catenax.semantics.aas.registry.model.AssetAdministrationShellDescriptor;
+import net.catenax.semantics.aas.registry.model.AssetAdministrationShellDescriptorCollection;
 import net.catenax.semantics.aas.registry.model.IdentifierKeyValuePair;
+import net.catenax.semantics.shell.dto.ShellCollectionDto;
 import net.catenax.semantics.shell.model.Shell;
 import net.catenax.semantics.shell.model.ShellIdentifier;
 import org.mapstruct.InheritInverseConfiguration;
@@ -25,6 +27,9 @@ public interface ShellMapper {
     ShellIdentifier fromApi(IdentifierKeyValuePair apiDto);
 
     Set<ShellIdentifier> fromApi(List<IdentifierKeyValuePair> apiDto);
+
+
+    AssetAdministrationShellDescriptorCollection toApiDto(ShellCollectionDto shell);
 
     @InheritInverseConfiguration
     AssetAdministrationShellDescriptor toApiDto(Shell shell);

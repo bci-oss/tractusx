@@ -18,15 +18,32 @@ paths:
       - Registry and Discovery Interface
       summary: Returns all Asset Administration Shell Descriptors
       operationId: GetAllAssetAdministrationShellDescriptors
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            default: 0
+            type: integer
+            description: The page to return
+        - in: query
+          name: pageSize
+          required: false
+          schema:
+            default: 10
+            type: integer
+            enum:
+              - 10
+              - 50
+              - 100
+            description: Size of the pages that the results should be partitioned in
       responses:
         "200":
           description: Requested Asset Administration Shell Descriptors
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AssetAdministrationShellDescriptor'
+                $ref: '#/components/schemas/AssetAdministrationShellDescriptorCollection'
       x-semanticIds:
       - https://admin-shell.io/aas/API/GetAllAssetAdministrationShellDescriptors/1/0/RC02
     post:
@@ -378,6 +395,34 @@ paths:
       - https://admin-shell.io/aas/API/DeleteAllAssetLinksById/1/0/RC02
 components:
   schemas:
+    # The official spec does not support pagination right now. This is an addition.
+    AssetAdministrationShellDescriptorCollection:
+      title: AssetAdministrationShellDescriptorCollection
+      required:
+        - items
+        - totalItems
+        - currentPage
+        - totalPages
+        - itemCount
+      type: object
+      properties:
+        items:
+          title: Items
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetAdministrationShellDescriptor'
+        totalItems:
+          title: Totalitems
+          type: integer
+        currentPage:
+          title: Currentpage
+          type: integer
+        totalPages:
+          title: Totalpages
+          type: integer
+        itemCount:
+          title: Itemcount
+          type: integer
     AssetAdministrationShellDescriptor:
       required:
       - endpoints
