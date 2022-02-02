@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.NativeWebRequest;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -56,8 +57,6 @@ public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate 
         shellService.deleteSubmodel(aasIdentifier, submodelIdentifier);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-
-
 
     @Override
     public ResponseEntity<List<SubmodelDescriptor>> getAllSubmodelDescriptors(String aasIdentifier) {
@@ -111,10 +110,13 @@ public class ShellApiDelegate implements RegistryApiDelegate, LookupApiDelegate 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    // TODO implement the query
     @Override
     public ResponseEntity<List<String>> getAllAssetAdministrationShellIdsByAssetLink(List<IdentifierKeyValuePair> assetIds) {
-        return LookupApiDelegate.super.getAllAssetAdministrationShellIdsByAssetLink(assetIds);
+        if( assetIds == null || assetIds.isEmpty()){
+            return new ResponseEntity<>(Collections.emptyList(), HttpStatus.OK);
+        }
+        List<String> externalIds = shellService.findExternalShellIdsByIdentifiers(shellMapper.fromApi(assetIds));
+        return new ResponseEntity<>(externalIds, HttpStatus.OK);
     }
 
     @Override

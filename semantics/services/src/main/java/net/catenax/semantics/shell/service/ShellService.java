@@ -1,6 +1,5 @@
 package net.catenax.semantics.shell.service;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import net.catenax.semantics.shell.dto.ShellCollectionDto;
 import net.catenax.semantics.shell.model.Shell;
@@ -58,6 +57,13 @@ public class ShellService {
                 .itemCount(shellsPage.getNumberOfElements())
                 .items(shellsPage.getContent())
                 .build();
+    }
+
+    public List<String> findExternalShellIdsByIdentifiers(Set<ShellIdentifier> shellIdentifiers){
+        Set<String> keyValueCombinations = shellIdentifiers.stream()
+                .map(identifier -> identifier.getKey() + ":" + identifier.getValue())
+                .collect(Collectors.toSet());
+        return shellRepository.findExternalShellIdsByIdentifiers(keyValueCombinations);
     }
 
     @Transactional
