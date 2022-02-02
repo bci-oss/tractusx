@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
+import net.catenax.semantics.aas.registry.model.ErrorResponse;
+import net.catenax.semantics.aas.registry.model.Error;
 import net.catenax.semantics.registry.service.EntityNotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -35,9 +37,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import net.catenax.semantics.hub.AspectModelNotFoundException;
 import net.catenax.semantics.hub.InvalidAspectModelException;
 import net.catenax.semantics.hub.ModelPackageNotFoundException;
-import net.catenax.semantics.registry.model.Error;
-import net.catenax.semantics.registry.model.ErrorResponse;
-
 @ControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
