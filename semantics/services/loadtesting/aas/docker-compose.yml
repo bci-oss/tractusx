@@ -6,7 +6,7 @@ services:
     image: postgres:13.6-alpine
     container_name: postgres
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
       POSTGRES_PASSWORD: example
     volumes:
@@ -16,7 +16,7 @@ services:
     image: catenaxacr.azurecr.io/semantics/servicesint:latest
     container_name: aas_registry
     ports:
-      - 4242:4242
+      - "4242:4242"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/postgres
       SPRING_DATASOURCE_DRIVERCLASSNAME: org.postgresql.Driver
@@ -31,7 +31,7 @@ services:
     image: locustio/locust:2.8.2
     container_name: locust_master
     ports:
-      - 8089:8089
+      - "8089:8089"
     volumes:
       - ./locust:/mnt/locust/
     command: -f /mnt/locust/locustfile.py --master -H http://host.docker.internal:4242
