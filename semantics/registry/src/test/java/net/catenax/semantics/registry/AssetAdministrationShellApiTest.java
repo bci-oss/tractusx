@@ -1,20 +1,29 @@
+/*
+ * Copyright (c) 2021-2022 Robert Bosch Manufacturing Solutions GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package net.catenax.semantics.registry;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import java.util.UUID;
@@ -22,190 +31,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-public class AssetAdministrationShellApiTest {
-
-
-    private static final String SHELL_BASE_PATH = "/registry/shell-descriptors";
-    private static final String SINGLE_SHELL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}";
-    private static final String LOOKUP_SHELL_BASE_PATH = "/lookup/shells";
-    private static final String SINGLE_LOOKUP_SHELL_BASE_PATH = "/lookup/shells/{shellIdentifier}";
-    private static final String SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors";
-    private static final String SINGLE_SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors/{submodelIdentifier}";
-
-    private final RequestPostProcessor jwtAuthentication = AuthenticationUtils.allRoles();
-    
-    @Autowired
-    private MockMvc mvc;
-
-    @Autowired
-    private ObjectMapper mapper;
-
-    @Nested
-    @DisplayName("Security tests")
-    class SecurityTests {
-        @Test
-        public void testWithoutAuthenticationTokenProvidedExpectForbidden() throws Exception {
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .get(SINGLE_SHELL_BASE_PATH, UUID.randomUUID())
-                                    .accept(MediaType.APPLICATION_JSON)
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isUnauthorized());
-        }
-
-        @Test
-        public void testWithAuthenticationTokenProvidedExpectSuccess() throws Exception {
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .get(SINGLE_SHELL_BASE_PATH, UUID.randomUUID())
-                                    .accept(MediaType.APPLICATION_JSON)
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isUnauthorized());
-        }
-
-        @Test
-        public void testRoleBaseAccessControlForShellCrud() throws Exception {
-
-            // get shells
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .get(SHELL_BASE_PATH)
-                                    .accept(MediaType.APPLICATION_JSON)
-                                    // test with wrong role
-                                    .with(AuthenticationUtils.addTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isForbidden());
-
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .get(SHELL_BASE_PATH)
-                                    .accept(MediaType.APPLICATION_JSON)
-                                    .with(AuthenticationUtils.readTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isOk());
-
-            // get twin by id
-            ObjectNode shellPayload = createShell(false);
-            performShellCreateRequest(toJson(shellPayload));
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .get(SINGLE_SHELL_BASE_PATH, getId(shellPayload) )
-                                    .accept(MediaType.APPLICATION_JSON)
-                                    // test with wrong role
-                                    .with(AuthenticationUtils.deleteTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isForbidden());
-
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .get(SINGLE_SHELL_BASE_PATH, getId(shellPayload) )
-                                    .accept(MediaType.APPLICATION_JSON)
-                                    .with(AuthenticationUtils.readTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isOk());
-
-            // create twin
-            ObjectNode shellPayloadForPost = createShell(false);
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .post(SHELL_BASE_PATH)
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .content(toJson(shellPayloadForPost))
-                                    // test with wrong role
-                                    .with(AuthenticationUtils.readTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isForbidden());
-
-
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .post(SHELL_BASE_PATH, toJson(shellPayloadForPost) )
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .content(toJson(shellPayloadForPost))
-                                    .with(AuthenticationUtils.addTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isCreated());
-
-            // update twin
-            ObjectNode shellPayloadForUpdate = createShell(false);
-            performShellCreateRequest(toJson(shellPayloadForUpdate));
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .put(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForUpdate))
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .content(toJson(shellPayloadForUpdate))
-                                    // test with wrong role
-                                    .with(AuthenticationUtils.readTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isForbidden());
-
-
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .put(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForUpdate))
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .content(toJson(shellPayloadForUpdate))
-                                    .with(AuthenticationUtils.updateTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isNoContent());
-
-            // delete twin
-            ObjectNode shellPayloadForDelete = createShell(false);
-            performShellCreateRequest(toJson(shellPayloadForDelete));
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .delete(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForDelete))
-                                    // test with wrong role
-                                    .with(AuthenticationUtils.readTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isForbidden());
-
-            mvc.perform(
-                            MockMvcRequestBuilders
-                                    .delete(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForDelete))
-                                    // test with wrong role
-                                    .with(AuthenticationUtils.deleteTwin())
-                    )
-                    .andDo(MockMvcResultHandlers.print())
-                    .andExpect(status().isNoContent());
-        }
-
-
-        /* "resource_access": {
-            "catenax-portal": {
-                "roles": [
-                "CX User",
-                        "add_semantic_model",
-                        "add_digitial_twin",
-                        "delete_semantic_model_released",
-                        "update_semantic_model_draft",
-                        "Data Specialist",
-                        "delete_digitial_twin",
-                        "view_semantic_hub",
-                        "delete_semantic_model_draft",
-                        "filter_apps",
-                        "view_user_management",
-                        "view_digital_twins",
-                        "view_apps",
-                        "update_semantic_model_released",
-                        "update_digitial_twin"
-      ]
-            }
-        },*/
-    }
+public class AssetAdministrationShellApiTest extends AbstractAssetAdministrationShellApi {
 
     @Nested
     @DisplayName("Shell CRUD API")
@@ -1079,159 +905,5 @@ public class AssetAdministrationShellApiTest {
                             hasItems(getId(shellPayload1), getId(shellPayload2)) ));
         }
     }
-
-
-    private String getId(ObjectNode payload) {
-        return payload.get("identification").textValue();
-    }
-
-    private void performSubmodelCreateRequest(String payload, String shellIdentifier) throws Exception {
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .post(SUB_MODEL_BASE_PATH, shellIdentifier)
-                                .accept(MediaType.APPLICATION_JSON)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(payload)
-                                .with(jwtAuthentication)
-                )
-                .andDo(MockMvcResultHandlers.print())
-                .andExpect(status().isCreated())
-                .andExpect(content().json(payload));
-    }
-
-    /**
-     * calls create and checks result for identity
-     * @param payload
-     * @throws Exception
-     */
-    private void performShellCreateRequest(String payload) throws Exception {
-        performShellCreateRequest(payload,payload);
-    }
-
-    /**
-     * performs create and checks result for expections
-     * @param payload
-     * @param expectation
-     * @throws Exception
-     */
-    private void performShellCreateRequest(String payload, String expectation) throws Exception {
-        mvc.perform(
-                        MockMvcRequestBuilders
-                                .post(SHELL_BASE_PATH)
-                                .accept(MediaType.APPLICATION_JSON)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(payload)
-                                .with(jwtAuthentication)
-                )
-                .andDo(MockMvcResultHandlers.print())
-                .andExpect(status().isCreated())
-                .andExpect(content().json(expectation));
-    }
-
-
-    private ObjectNode createShell( boolean global ) throws JsonProcessingException {
-        ObjectNode shellPayload = createBaseIdPayload("exampleShellIdPrefix", "exampleShellShortId");
-        shellPayload.set("description", emptyArrayNode()
-                .add(createDescription("en", "this is an example description"))
-                .add(createDescription("de", "das ist ein beispiel")));
-
-        String globalId="exampleGlobalAssetId";
-        if(global) {
-            globalId="exampleShellIdPrefix#"+globalId;
-        }
-        shellPayload.set("globalAssetId", mapper.createObjectNode()
-                .set("value", emptyArrayNode().add(globalId) ));
-
-        shellPayload.set("specificAssetIds", emptyArrayNode()
-                .add(specificAssetId("vin1", "valueforvin1"))
-                .add(specificAssetId("enginenumber1", "enginenumber1")));
-
-        shellPayload.set("submodelDescriptors", emptyArrayNode()
-                .add(createSubmodel("submodel_external1"))
-                .add(createSubmodel("submodel_external2")));
-        return shellPayload;
-    }
-
-    private ObjectNode createSubmodel(String submodelIdPrefix) throws JsonProcessingException {
-        ObjectNode submodelPayload = createBaseIdPayload(submodelIdPrefix, "exampleSubModelShortId");
-        submodelPayload.set("description", emptyArrayNode()
-                .add(createDescription("en", "this is an example submodel description"))
-                .add(createDescription("de", "das ist ein Beispiel submodel")));
-        submodelPayload.set("endpoints", emptyArrayNode()
-                .add(createEndpoint()));
-        submodelPayload.set("semanticId", createSemanticId());
-        return submodelPayload;
-    }
-
-    private static String uuid(String prefix) {
-        return prefix + "#" + UUID.randomUUID();
-    }
-
-
-    private ArrayNode emptyArrayNode() {
-        return mapper.createArrayNode();
-    }
-
-    private ObjectNode createBaseIdPayload(String idPrefix, String idShort) throws JsonProcessingException {
-        ObjectNode objectNode = mapper.createObjectNode();
-        objectNode.put("identification", uuid(idPrefix));
-        objectNode.put("idShort", idShort);
-        return objectNode;
-    }
-
-    private ObjectNode createDescription(String language, String text) {
-        ObjectNode description = mapper.createObjectNode();
-        description.put("language", language);
-        description.put("text", text);
-        return description;
-    }
-
-    private ObjectNode createGlobalAssetId(String value) {
-        ObjectNode semanticId = mapper.createObjectNode();
-        semanticId.set("value", emptyArrayNode().add(value) );
-        return semanticId;
-    }
-
-    private ObjectNode specificAssetId(String key, String value) {
-        ObjectNode specificAssetId = mapper.createObjectNode();
-        specificAssetId.put("key", key);
-        specificAssetId.put("value", value);
-        return specificAssetId;
-    }
-
-    private ObjectNode createSemanticId() {
-        ObjectNode semanticId = mapper.createObjectNode();
-        semanticId.set("value", emptyArrayNode().add("urn:net.catenax.vehicle:1.0.0#Parts"));
-        return semanticId;
-    }
-
-
-
-
-    private ObjectNode createEndpoint() {
-        ObjectNode endpoint = mapper.createObjectNode();
-        endpoint.put("interface", "interfaceName");
-        endpoint.set("protocolInformation", mapper.createObjectNode()
-                .put("endpointAddress", "https://catena-xsubmodel-vechile.net/path")
-                .put("endpointProtocol", "https")
-                .put("subprotocol", "Mca1uf1")
-                .put("subprotocolBody", "Mafz1")
-                .put("subprotocolBodyEncoding", "Fj1092ufj")
-        );
-        return endpoint;
-    }
-
-    private String toJson(JsonNode jsonNode) throws JsonProcessingException {
-        return mapper.writeValueAsString(jsonNode);
-    }
-
-    private String toJson(ObjectNode objectNode) throws JsonProcessingException {
-        return mapper.writeValueAsString(objectNode);
-    }
-
-    private String toJson(ArrayNode objectNode) throws JsonProcessingException {
-        return mapper.writeValueAsString(objectNode);
-    }
-
 
 }
