@@ -14,12 +14,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -34,6 +34,8 @@ public class AssetAdministrationShellApiTest {
     private static final String SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors";
     private static final String SINGLE_SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors/{submodelIdentifier}";
 
+    private RequestPostProcessor jwtAuthentication = AuthenticationUtils.allRoles();
+    
     @Autowired
     private MockMvc mvc;
 
@@ -64,6 +66,145 @@ public class AssetAdministrationShellApiTest {
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isUnauthorized());
         }
+
+        @Test
+        public void testRoleBaseAccessControlForShellCrud() throws Exception {
+
+            // get shells
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get(SHELL_BASE_PATH)
+                                    .accept(MediaType.APPLICATION_JSON)
+                                    // test with wrong role
+                                    .with(AuthenticationUtils.addTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isForbidden());
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get(SHELL_BASE_PATH)
+                                    .accept(MediaType.APPLICATION_JSON)
+                                    .with(AuthenticationUtils.readTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isOk());
+
+            // get twin by id
+            ObjectNode shellPayload = createShell(false);
+            performShellCreateRequest(toJson(shellPayload));
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get(SINGLE_SHELL_BASE_PATH, getId(shellPayload) )
+                                    .accept(MediaType.APPLICATION_JSON)
+                                    // test with wrong role
+                                    .with(AuthenticationUtils.deleteTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isForbidden());
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .get(SINGLE_SHELL_BASE_PATH, getId(shellPayload) )
+                                    .accept(MediaType.APPLICATION_JSON)
+                                    .with(AuthenticationUtils.readTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isOk());
+
+            // create twin
+            ObjectNode shellPayloadForPost = createShell(false);
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .post(SHELL_BASE_PATH)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(toJson(shellPayloadForPost))
+                                    // test with wrong role
+                                    .with(AuthenticationUtils.readTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isForbidden());
+
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .post(SHELL_BASE_PATH, toJson(shellPayloadForPost) )
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(toJson(shellPayloadForPost))
+                                    .with(AuthenticationUtils.addTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isCreated());
+
+            // update twin
+            ObjectNode shellPayloadForUpdate = createShell(false);
+            performShellCreateRequest(toJson(shellPayloadForUpdate));
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForUpdate))
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(toJson(shellPayloadForUpdate))
+                                    // test with wrong role
+                                    .with(AuthenticationUtils.readTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isForbidden());
+
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .put(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForUpdate))
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(toJson(shellPayloadForUpdate))
+                                    .with(AuthenticationUtils.updateTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isNoContent());
+
+            // delete twin
+            ObjectNode shellPayloadForDelete = createShell(false);
+            performShellCreateRequest(toJson(shellPayloadForDelete));
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForDelete))
+                                    // test with wrong role
+                                    .with(AuthenticationUtils.readTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isForbidden());
+
+            mvc.perform(
+                            MockMvcRequestBuilders
+                                    .delete(SINGLE_SHELL_BASE_PATH, getId(shellPayloadForDelete))
+                                    // test with wrong role
+                                    .with(AuthenticationUtils.deleteTwin())
+                    )
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isNoContent());
+        }
+
+
+        /* "resource_access": {
+            "catenax-portal": {
+                "roles": [
+                "CX User",
+                        "add_semantic_model",
+                        "add_digitial_twin",
+                        "delete_semantic_model_released",
+                        "update_semantic_model_draft",
+                        "Data Specialist",
+                        "delete_digitial_twin",
+                        "view_semantic_hub",
+                        "delete_semantic_model_draft",
+                        "filter_apps",
+                        "view_user_management",
+                        "view_digital_twins",
+                        "view_apps",
+                        "update_semantic_model_released",
+                        "update_digitial_twin"
+      ]
+            }
+        },*/
     }
 
     @Nested
@@ -91,7 +232,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(shellPayload))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isBadRequest())
@@ -107,7 +248,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -120,7 +261,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SHELL_BASE_PATH, "NotExistingShellId")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound());
@@ -135,7 +276,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(SHELL_BASE_PATH)
                                     .queryParam("pageSize", "100")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -162,7 +303,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(updateDescription))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -171,7 +312,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -187,7 +328,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(createShell(false)))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -211,7 +352,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(updatedShell))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -224,7 +365,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -240,7 +381,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .delete(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -255,7 +396,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .delete(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -277,7 +418,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(shellPayload))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isCreated())
@@ -300,7 +441,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", toJson(multipleAssetIdParam))
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -310,7 +451,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .delete(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -337,7 +478,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(specificAssetIds))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isCreated())
@@ -365,7 +506,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(specificAssetIds))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isCreated())
@@ -377,7 +518,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -394,7 +535,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(specificAssetIds))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -411,7 +552,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_LOOKUP_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -424,7 +565,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_LOOKUP_SHELL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -450,7 +591,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SHELL_BASE_PATH, shellId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -471,7 +612,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(existingSubmodel))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isBadRequest())
@@ -498,7 +639,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(updatedSubmodel))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -507,7 +648,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -521,7 +662,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SUB_MODEL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -536,7 +677,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SUB_MODEL_BASE_PATH, shellId, "notexistingsubmodel")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -564,7 +705,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(updatedSubmodel))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -577,7 +718,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -599,7 +740,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .delete(SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNoContent());
@@ -608,7 +749,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(SINGLE_SUB_MODEL_BASE_PATH, shellId, submodelId)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound());
@@ -621,7 +762,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .delete(SINGLE_SUB_MODEL_BASE_PATH, "notexistingshell", "notexistingsubmodel")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -636,7 +777,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .delete(SINGLE_SUB_MODEL_BASE_PATH, shellId, "notexistingsubmodel")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isNotFound())
@@ -655,7 +796,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", "{ invalid }")
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isBadRequest())
@@ -670,7 +811,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", swaggerUIEscapedAssetIds)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -709,7 +850,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", toJson(allSpecificAssetIdsForFirstShell))
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -725,7 +866,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", toJson(oneAssetIdForFirstShell))
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -741,7 +882,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", toJson(commonAssetIdBothShells))
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -767,7 +908,7 @@ public class AssetAdministrationShellApiTest {
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .queryParam("assetIds", toJson(globalAssetIdForSampleQuery))
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -783,7 +924,7 @@ public class AssetAdministrationShellApiTest {
                             MockMvcRequestBuilders
                                     .get(LOOKUP_SHELL_BASE_PATH)
                                     .accept(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -810,7 +951,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(batchShellBody))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isCreated())
@@ -837,7 +978,7 @@ public class AssetAdministrationShellApiTest {
                                     .accept(MediaType.APPLICATION_JSON)
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(toJson(batchShellBody))
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isCreated())
@@ -874,7 +1015,7 @@ public class AssetAdministrationShellApiTest {
                                     .post(LOOKUP_SHELL_BASE_PATH + "/query")
                                     .content(toJson(anyMatchAueryByAssetIds))
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -889,7 +1030,7 @@ public class AssetAdministrationShellApiTest {
                                     .post(SHELL_BASE_PATH + "/fetch")
                                     .content(toJson(emptyArrayNode()))
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -911,7 +1052,7 @@ public class AssetAdministrationShellApiTest {
                                     .post(SHELL_BASE_PATH + "/fetch")
                                     .content(toJson(fetchOneShellsById))
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -928,7 +1069,7 @@ public class AssetAdministrationShellApiTest {
                                     .post(SHELL_BASE_PATH + "/fetch")
                                     .content(toJson(fetchTwoShellsById))
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .with(jwt())
+                                    .with(jwtAuthentication)
                     )
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isOk())
@@ -951,7 +1092,7 @@ public class AssetAdministrationShellApiTest {
                                 .accept(MediaType.APPLICATION_JSON)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(payload)
-                                .with(jwt())
+                                .with(jwtAuthentication)
                 )
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
@@ -980,7 +1121,7 @@ public class AssetAdministrationShellApiTest {
                                 .accept(MediaType.APPLICATION_JSON)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(payload)
-                                .with(jwt())
+                                .with(jwtAuthentication)
                 )
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
