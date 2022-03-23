@@ -34,7 +34,7 @@ public class AssetAdministrationShellApiTest {
     private static final String SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors";
     private static final String SINGLE_SUB_MODEL_BASE_PATH = "/registry/shell-descriptors/{shellIdentifier}/submodel-descriptors/{submodelIdentifier}";
 
-    private RequestPostProcessor jwtAuthentication = AuthenticationUtils.allRoles();
+    private final RequestPostProcessor jwtAuthentication = AuthenticationUtils.allRoles();
     
     @Autowired
     private MockMvc mvc;
